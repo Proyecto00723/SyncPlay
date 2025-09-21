@@ -45,45 +45,10 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // --- Función para limpiar y extraer ID de YouTube ---
-    function extractVideoId(url) {
-      let videoId = "";
-
-      // Caso: youtube.com/watch?v=VIDEOID
-      const regExp1 = /v=([^&]+)/;
-      const match1 = url.match(regExp1);
-      if (match1 && match1[1]) {
-        videoId = match1[1];
-      }
-
-      // Caso: youtu.be/VIDEOID
-      const regExp2 = /youtu\.be\/([^?&]+)/;
-      const match2 = url.match(regExp2);
-      if (match2 && match2[1]) {
-        videoId = match2[1];
-      }
-
-      // Limpiar parámetros extra
-      if (videoId.includes("?")) {
-        videoId = videoId.split("?")[0];
-      }
-      if (videoId.includes("&")) {
-        videoId = videoId.split("&")[0];
-      }
-
-      return videoId;
-    }
-
     document.getElementById("create-room").addEventListener("click", () => {
       const url = document.getElementById("video-url").value.trim();
       if (!url) {
         alert("Please enter a YouTube URL");
-        return;
-      }
-
-      const videoId = extractVideoId(url);
-      if (!videoId) {
-        alert("Invalid YouTube URL");
         return;
       }
 
@@ -94,15 +59,8 @@
       // Guardar video inicial en Firebase
       set(ref(db, "rooms/" + roomId + "/video"), {
         url: url,
-        videoId: videoId,
         action: "pause",
         time: 0
-      });
-
-      // Guardar metadatos de la sala
-      set(ref(db, "rooms/" + roomId + "/meta"), {
-        createdAt: new Date().toISOString(),
-        users: 1
       });
 
       // Redirigir a la sala con creator=true
