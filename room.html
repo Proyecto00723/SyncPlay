@@ -33,7 +33,7 @@
         </button>
       </div>
 
-      <!-- contenedor del video con relación 16:9 -->
+      <!-- Contenedor del video -->
       <div id="video-container" class="relative w-full bg-slate-950 aspect-video">
         <p class="absolute inset-0 flex items-center justify-center text-gray-500">
           🎬 Waiting for video...
@@ -51,7 +51,8 @@
       <!-- mensajes con scroll -->
       <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm"></div>
 
-      <div class="p-2 border-t border-slate-700 flex gap-2">
+      <!-- Input solo visible si es creador -->
+      <div id="chat-input-box" class="p-2 border-t border-slate-700 flex gap-2">
         <input id="chat-input" type="text" placeholder="Type a message..."
           class="flex-1 p-2 rounded bg-slate-700 text-white text-sm"/>
         <button id="send-chat" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded">
@@ -91,9 +92,10 @@
     }
     document.getElementById("room-id-display").innerText = "Room: " + roomId;
 
-    // Si no es creador → ocultar controles de video
+    // Si no es creador → ocultar controles de video y caja de chat
     if (!isCreator) {
       document.getElementById("video-controls").style.display = "none";
+      document.getElementById("chat-input-box").style.display = "none";
     }
 
     // --- Contador de usuarios ---
@@ -109,7 +111,7 @@
       runTransaction(userCountRef, (current) => (current || 1) - 1);
     });
 
-    // --- Chat ---
+    // --- Chat (solo creador envía, todos leen) ---
     const chatRef = ref(db, "rooms/" + roomId + "/chat");
     const chatBox = document.getElementById("chat-messages");
 
@@ -127,16 +129,18 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    document.getElementById("send-chat").addEventListener("click", sendMessage);
-    document.getElementById("chat-input").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
+    if (isCreator) {
+      document.getElementById("send-chat").addEventListener("click", sendMessage);
+      document.getElementById("chat-input").addEventListener("keypress", (e) => {
+        if (e.key === "Enter") sendMessage();
+      });
+    }
 
     function sendMessage() {
       const input = document.getElementById("chat-input");
       if (!input.value.trim()) return;
       push(chatRef, {
-        user: "Anon", // 👤 aquí luego se puede cambiar por un login
+        user: "Creator", 
         text: input.value.trim(),
         time: Date.now()
       });
