@@ -74,7 +74,7 @@
   <script src="https://www.youtube.com/iframe_api"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, set, push, onValue, runTransaction, update } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { getDatabase, ref, set, push, onValue, runTransaction, update, get } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
     // --- Firebase config ---
     const firebaseConfig = {
@@ -219,6 +219,21 @@
       if (data.action === "play") player.playVideo();
       else player.pauseVideo();
     });
+
+    // --- Botón Align manual ---
+    if (!isCreator) {
+      document.getElementById("align-video").addEventListener("click", async () => {
+        const snap = await get(videoRef);
+        if (snap.exists()) {
+          const data = snap.val();
+          if (data && player) {
+            player.seekTo(data.time, true);
+            if (data.action === "play") player.playVideo();
+            else player.pauseVideo();
+          }
+        }
+      });
+    }
 
     // --- Extract VideoId robusto ---
     function extractVideoId(url) {
