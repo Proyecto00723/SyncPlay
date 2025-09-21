@@ -25,6 +25,7 @@
     
     <!-- Video -->
     <section class="flex-1 bg-black rounded-lg overflow-hidden flex flex-col">
+      
       <!-- Controles de video (solo creador) -->
       <div id="video-controls" class="p-2 bg-slate-800 flex flex-col gap-2">
         <div class="flex gap-2">
@@ -51,9 +52,17 @@
 
     <!-- Chat -->
     <aside class="w-full md:w-1/3 flex flex-col bg-slate-800 rounded-lg max-h-[calc(100vh-120px)]">
-      <div class="p-2 border-b border-slate-700 flex justify-between">
+      
+      <!-- Encabezado -->
+      <div class="p-2 border-b border-slate-700 flex justify-between items-center">
         <span class="font-bold">💬 Chat</span>
         <span id="user-count" class="text-gray-400 text-sm">0 online</span>
+      </div>
+
+      <!-- Nombre editable -->
+      <div class="p-2 border-b border-slate-700 flex items-center gap-2 text-sm">
+        <span class="text-gray-400">Your name:</span>
+        <span id="user-name" class="cursor-pointer underline text-cyan-300"></span>
       </div>
 
       <!-- Mensajes -->
@@ -106,6 +115,20 @@
       document.getElementById("align-controls").style.display = "block";
     }
 
+    // --- Nombre del usuario ---
+    let userName = isCreator ? "👑 Creator" : "🙋 Viewer";
+    const userNameSpan = document.getElementById("user-name");
+    userNameSpan.textContent = userName;
+
+    userNameSpan.addEventListener("click", () => {
+      const newName = prompt("Escribe tu nuevo nombre (máx. 13 caracteres):", userName.replace("👑 ", "").replace("🙋 ", ""));
+      if (newName !== null) {
+        const trimmed = newName.trim().slice(0, 13);
+        userName = (isCreator ? "👑 " : "🙋 ") + (trimmed || (isCreator ? "Creator" : "Viewer"));
+        userNameSpan.textContent = userName;
+      }
+    });
+
     // --- User counter ---
     const userCountRef = ref(db, "rooms/" + roomId + "/users");
     runTransaction(userCountRef, (current) => (current || 0) + 1);
@@ -148,7 +171,7 @@
       const input = document.getElementById("chat-input");
       if (!input.value.trim()) return;
       push(chatRef, {
-        user: isCreator ? "👑 Creator" : "🙋 Viewer",
+        user: userName,
         text: input.value.trim(),
         time: Date.now()
       });
