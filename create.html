@@ -45,11 +45,33 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Función para extraer el videoId de cualquier link de YouTube
+    // --- Función para limpiar y extraer ID de YouTube ---
     function extractVideoId(url) {
-      const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
-      const match = url.match(regExp);
-      return match ? match[1] : "";
+      let videoId = "";
+
+      // Caso: youtube.com/watch?v=VIDEOID
+      const regExp1 = /v=([^&]+)/;
+      const match1 = url.match(regExp1);
+      if (match1 && match1[1]) {
+        videoId = match1[1];
+      }
+
+      // Caso: youtu.be/VIDEOID
+      const regExp2 = /youtu\.be\/([^?&]+)/;
+      const match2 = url.match(regExp2);
+      if (match2 && match2[1]) {
+        videoId = match2[1];
+      }
+
+      // Limpiar parámetros extra
+      if (videoId.includes("?")) {
+        videoId = videoId.split("?")[0];
+      }
+      if (videoId.includes("&")) {
+        videoId = videoId.split("&")[0];
+      }
+
+      return videoId;
     }
 
     document.getElementById("create-room").addEventListener("click", () => {
@@ -59,9 +81,8 @@
         return;
       }
 
-      // Extraer ID del video
-      const vid = extractVideoId(url);
-      if (!vid) {
+      const videoId = extractVideoId(url);
+      if (!videoId) {
         alert("Invalid YouTube URL");
         return;
       }
@@ -70,12 +91,18 @@
       const roomRef = push(ref(db, "rooms"));
       const roomId = roomRef.key;
 
-      // Guardar video inicial en Firebase (con url y videoId)
+      // Guardar video inicial en Firebase
       set(ref(db, "rooms/" + roomId + "/video"), {
         url: url,
-        videoId: vid,
+        videoId: videoId,
         action: "pause",
         time: 0
+      });
+
+      // Guardar metadatos de la sala
+      set(ref(db, "rooms/" + roomId + "/meta"), {
+        createdAt: new Date().toISOString(),
+        users: 1
       });
 
       // Redirigir a la sala con creator=true
