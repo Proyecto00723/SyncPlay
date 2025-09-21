@@ -34,7 +34,7 @@
         </button>
       </div>
 
-      <!-- Contenedor del video con relación 16:9 -->
+      <!-- Contenedor del video -->
       <div id="video-container" class="relative w-full bg-slate-950 aspect-video">
         <p class="absolute inset-0 flex items-center justify-center text-gray-500">
           🎬 Waiting for video...
@@ -63,7 +63,8 @@
     </aside>
   </main>
 
-  <!-- Firebase + Logic -->
+  <!-- Firebase + YouTube API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getDatabase, ref, set, push, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
@@ -85,7 +86,7 @@
     // --- Room & Role ---
     const params = new URLSearchParams(window.location.search);
     const roomId = params.get("id");
-    const isCreator = params.get("creator") === "true"; // 🔹 detecta rol
+    const isCreator = params.get("creator") === "true"; 
 
     if (!roomId) {
       alert("❌ No room ID provided");
@@ -93,7 +94,6 @@
     }
     document.getElementById("room-id-display").innerText = "Room: " + roomId;
 
-    // Si no es creador → ocultar controles de video
     if (!isCreator) {
       document.getElementById("video-controls").style.display = "none";
     }
@@ -115,7 +115,6 @@
     const chatRef = ref(db, "rooms/" + roomId + "/chat");
     const chatBox = document.getElementById("chat-messages");
 
-    // escuchar mensajes en tiempo real
     onValue(chatRef, (snap) => {
       chatBox.innerHTML = "";
       snap.forEach((msg) => {
@@ -140,44 +139,90 @@
     function sendMessage() {
       const input = document.getElementById("chat-input");
       if (!input.value.trim()) return;
-
       push(chatRef, {
         user: isCreator ? "👑 Creator" : "🙋 Viewer",
         text: input.value.trim(),
         time: Date.now()
       });
-
       input.value = "";
     }
 
-    // --- Video sync ---
+    // --- Video sync con YouTube API ---
     const videoRef = ref(db, "rooms/" + roomId + "/video");
-    const videoContainer = document.getElementById("video-container");
+    let player;
+    let lastUpdateFromServer = false;
+
+    // Inicializar reproductor
+    window.onYouTubeIframeAPIReady = () => {
+      player = new YT.Player("video-container", {
+        width: "100%",
+        height: "100%",
+        videoId: "",
+        playerVars: { autoplay: 0, controls: isCreator ? 1 : 0 },
+        events: {
+          onStateChange: onPlayerStateChange
+        }
+      });
+    };
+
+    // --- Solo creador controla ---
+    function onPlayerStateChange(event) {
+      if (!isCreator) return;
+      const state = event.data;
+      if (lastUpdateFromServer) {
+        lastUpdateFromServer = false;
+        return;
+      }
+      set(videoRef, {
+        url: currentVideoId,
+        state,
+        time: player.getCurrentTime(),
+        lastUpdate: Date.now()
+      });
+    }
+
+    let currentVideoId = "";
 
     if (isCreator) {
       document.getElementById("load-video").addEventListener("click", () => {
         const url = document.getElementById("video-url").value.trim();
         if (!url) return;
-        set(videoRef, { url });
+        currentVideoId = extractVideoId(url);
+        player.loadVideoById(currentVideoId);
+        set(videoRef, {
+          url: currentVideoId,
+          state: YT.PlayerState.PAUSED,
+          time: 0,
+          lastUpdate: Date.now()
+        });
       });
     }
 
+    // --- Sincronización para todos ---
     onValue(videoRef, (snap) => {
       const data = snap.val();
-      if (data && data.url) {
-        videoContainer.innerHTML = `
-          <iframe class="absolute inset-0 w-full h-full"
-            src="https://www.youtube.com/embed/${extractVideoId(data.url)}?autoplay=1"
-            frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
-          </iframe>
-        `;
+      if (!data) return;
+      if (!player || !player.loadVideoById) return;
+
+      lastUpdateFromServer = true;
+
+      if (currentVideoId !== data.url) {
+        currentVideoId = data.url;
+        player.loadVideoById(data.url, data.time);
+      } else {
+        player.seekTo(data.time, true);
+        if (data.state === YT.PlayerState.PLAYING) {
+          player.playVideo();
+        } else {
+          player.pauseVideo();
+        }
       }
     });
 
     function extractVideoId(url) {
       const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
       const match = url.match(regExp);
-      return match ? match[1] : "";
+      return match ? match[1] : url;
     }
 
     // --- Salir de la sala ---
