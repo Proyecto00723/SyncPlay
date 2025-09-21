@@ -27,7 +27,7 @@
     <section class="flex-1 bg-black rounded-lg overflow-hidden flex flex-col">
       <!-- Controles de video (solo creador) -->
       <div id="video-controls" class="p-2 bg-slate-800 flex flex-col gap-2">
-
+        
         <!-- Input para URLs estándar -->
         <div class="flex gap-2">
           <input id="video-url-1" type="text" placeholder="Paste standard YouTube URL"
@@ -194,7 +194,7 @@
     }
 
     if (isCreator) {
-      // Botón 1 (URL estándar)
+      // Cargar con URL estándar
       document.getElementById("load-video-1").addEventListener("click", () => {
         const url = document.getElementById("video-url-1").value.trim();
         if (!url) return;
@@ -203,7 +203,7 @@
         player.loadVideoById(vid);
       });
 
-      // Botón 2 (URL con ?si=)
+      // Cargar con URL tipo ?si=
       document.getElementById("load-video-2").addEventListener("click", () => {
         const url = document.getElementById("video-url-2").value.trim();
         if (!url) return;
@@ -239,7 +239,7 @@
       }, { onlyOnce: true });
     });
 
-    // --- Funciones para extraer IDs ---
+    // --- Funciones de extracción ---
     function extractVideoId(url) {
       const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
       const match = url.match(regExp);
