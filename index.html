@@ -3,43 +3,41 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SyncPlay - Home</title>
+  <title>SyncPlay</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 </head>
 <body class="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6">
 
-  <h1 class="text-4xl font-bold text-cyan-400 mb-8">🎬 SyncPlay</h1>
+  <!-- Header -->
+  <header class="mb-8">
+    <h1 class="text-4xl font-bold text-cyan-400">🎬 SyncPlay</h1>
+    <p class="text-gray-400 mt-2">Watch YouTube together in sync</p>
+  </header>
 
-  <div class="flex flex-col md:flex-row gap-4 justify-center">
-    <!-- Botón Crear Sala -->
-    <button id="create-room-btn"
-      class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition-colors">
+  <!-- Main -->
+  <main class="bg-slate-800 p-6 rounded-lg w-full max-w-md space-y-4">
+    <button id="create-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition-colors">
       <i class="fas fa-plus-circle mr-2"></i> Create Room
     </button>
 
-    <!-- Botón Unirse -->
+    <div class="text-center text-gray-400">or</div>
+
+    <input id="room-id" type="text" placeholder="Enter Room ID"
+      class="w-full p-3 rounded bg-slate-700 text-white text-lg"/>
+
     <button id="join-room-btn"
-      class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition-colors">
+      class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition-colors">
       <i class="fas fa-sign-in-alt mr-2"></i> Join Room
     </button>
-  </div>
+  </main>
 
-  <!-- Caja para ingresar Room ID -->
-  <div id="join-room-box" class="hidden mt-6 flex gap-2 w-full max-w-md">
-    <input id="room-id-input" type="text" placeholder="Enter Room ID..."
-      class="flex-1 p-3 rounded bg-slate-700 text-white"/>
-    <button id="go-room" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded">
-      Go
-    </button>
-  </div>
-
-  <!-- Firebase + Logic -->
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // --- Firebase config ---
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDEVWAQ4eIoi2NvbYj7XeFrsgCaiCZj0uc",
       authDomain: "ecosalas-25261.firebaseapp.com",
@@ -53,29 +51,31 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Crear sala
-    document.getElementById("create-room-btn").addEventListener("click", () => {
-      const roomId = "room_" + Date.now();
-      set(ref(db, "rooms/" + roomId), {
-        createdAt: new Date().toISOString(),
-        users: 0
-      }).then(() => {
-        // Redirigir con creator=true
-        window.location.href = `room.html?id=${roomId}&creator=true`;
-      });
+    // Botón crear
+    document.getElementById("create-btn").addEventListener("click", () => {
+      window.location.href = "create.html";
     });
 
-    // Mostrar input al darle "Join Room"
-    document.getElementById("join-room-btn").addEventListener("click", () => {
-      document.getElementById("join-room-box").classList.remove("hidden");
-    });
+    // Botón unirse
+    document.getElementById("join-room-btn").addEventListener("click", async () => {
+      const roomId = document.getElementById("room-id").value.trim();
+      if (!roomId) {
+        alert("❌ Please enter a Room ID");
+        return;
+      }
 
-    // Entrar a sala existente
-    document.getElementById("go-room").addEventListener("click", () => {
-      const roomId = document.getElementById("room-id-input").value.trim();
-      if (!roomId) return alert("Enter a room ID");
-      // Redirigir con creator=false
-      window.location.href = `room.html?id=${roomId}&creator=false`;
+      try {
+        const snapshot = await get(child(ref(db), "rooms/" + roomId + "/video"));
+        if (snapshot.exists()) {
+          // Si la sala existe, redirigir como viewer
+          window.location.href = `room.html?id=${roomId}&creator=false`;
+        } else {
+          alert("❌ Room not found");
+        }
+      } catch (error) {
+        console.error("Error checking room:", error);
+        alert("⚠️ Error connecting to database");
+      }
     });
   </script>
 </body>
