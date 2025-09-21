@@ -7,44 +7,33 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 </head>
-<body class="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6">
+<body class="min-h-screen bg-slate-900 text-white flex items-center justify-center">
 
-  <div class="bg-slate-800 p-6 rounded-xl shadow-lg w-full max-w-md">
-    <h1 class="text-2xl font-bold text-center text-cyan-400 mb-4">Create a Room</h1>
-
-    <!-- Input para nombre de sala -->
-    <div class="mb-4">
-      <label class="block text-sm mb-1">Room Name</label>
-      <input id="room-name" type="text" placeholder="Enter a room name"
-        class="w-full p-2 rounded bg-slate-700 text-white"/>
-    </div>
+  <div class="bg-slate-800 p-6 rounded-xl shadow-lg w-full max-w-lg space-y-4">
+    <h1 class="text-2xl font-bold text-cyan-400 text-center">Create Room</h1>
 
     <!-- Input para URLs estándar -->
-    <div class="mb-4">
-      <label class="block text-sm mb-1">YouTube URL (standard)</label>
-      <div class="flex gap-2">
-        <input id="video-url-1" type="text" placeholder="https://youtube.com/watch?v=..."
-          class="flex-1 p-2 rounded bg-slate-700 text-white"/>
-        <button id="create-room-1" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
-          <i class="fas fa-plus"></i>
-        </button>
-      </div>
+    <div class="flex gap-2">
+      <input id="video-url-1" type="text" placeholder="Paste standard YouTube URL"
+        class="flex-1 p-2 rounded bg-slate-700 text-white"/>
+      <button id="create-room-1" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
+        <i class="fas fa-plus"></i> Create 1
+      </button>
     </div>
 
     <!-- Input para URLs con ?si= -->
-    <div class="mb-4">
-      <label class="block text-sm mb-1">YouTube URL (?si= links)</label>
-      <div class="flex gap-2">
-        <input id="video-url-2" type="text" placeholder="https://youtu.be/...?...?si=..."
-          class="flex-1 p-2 rounded bg-slate-700 text-white"/>
-        <button id="create-room-2" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded">
-          <i class="fas fa-plus"></i>
-        </button>
-      </div>
+    <div class="flex gap-2">
+      <input id="video-url-2" type="text" placeholder="Paste YouTube URL with ?si="
+        class="flex-1 p-2 rounded bg-slate-700 text-white"/>
+      <button id="create-room-2" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded">
+        <i class="fas fa-plus"></i> Create 2
+      </button>
     </div>
 
     <!-- Mensaje -->
-    <p id="status" class="text-center text-sm text-gray-400 mt-3"></p>
+    <p class="text-sm text-gray-400 text-center">
+      After creating a room, you will be redirected as the creator.
+    </p>
   </div>
 
   <script type="module">
@@ -65,64 +54,49 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    const status = document.getElementById("status");
-
-    // Crear sala con URL estándar
-    document.getElementById("create-room-1").addEventListener("click", () => {
-      createRoom("standard");
-    });
-
-    // Crear sala con URL tipo ?si=
-    document.getElementById("create-room-2").addEventListener("click", () => {
-      createRoom("si");
-    });
-
-    function createRoom(type) {
-      const roomName = document.getElementById("room-name").value.trim();
-      if (!roomName) {
-        status.innerText = "⚠ Please enter a room name";
-        return;
+    // Función universal para obtener videoId limpio
+    function extractVideoId(url) {
+      try {
+        const u = new URL(url);
+        if (u.hostname.includes("youtu.be")) {
+          return u.pathname.replace("/", "");
+        }
+        if (u.searchParams.get("v")) {
+          return u.searchParams.get("v");
+        }
+      } catch (e) {
+        const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
+        const match = url.match(regExp);
+        return match ? match[1] : "";
       }
+      return "";
+    }
 
-      const url = (type === "standard") 
-        ? document.getElementById("video-url-1").value.trim()
-        : document.getElementById("video-url-2").value.trim();
-
-      if (!url) {
-        status.innerText = "⚠ Please enter a YouTube URL";
-        return;
-      }
-
-      const videoId = (type === "standard") ? extractVideoId(url) : extractVideoIdSi(url);
-      if (!videoId) {
-        status.innerText = "❌ Invalid YouTube URL";
-        return;
-      }
+    // Crear sala
+    function createRoom(url) {
+      const vid = extractVideoId(url);
+      if (!vid) return alert("❌ Invalid YouTube URL");
 
       const roomId = "room_" + Date.now();
       set(ref(db, "rooms/" + roomId), {
         createdAt: new Date().toISOString(),
         users: 1,
-        video: { url: url, videoId: videoId, action: "pause", time: 0 }
-      }).then(() => {
-        window.location.href = `room.html?id=${roomId}&creator=true`;
-      }).catch(err => {
-        status.innerText = "❌ Error: " + err.message;
+        video: { url, videoId: vid, action: "pause", time: 0 }
       });
+
+      // Redirigir al creador
+      window.location.href = `room.html?id=${roomId}&creator=true`;
     }
 
-    // --- Funciones de extracción ---
-    function extractVideoId(url) {
-      const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
-      const match = url.match(regExp);
-      return match ? match[1] : "";
-    }
+    document.getElementById("create-room-1").addEventListener("click", () => {
+      const url = document.getElementById("video-url-1").value.trim();
+      if (url) createRoom(url);
+    });
 
-    function extractVideoIdSi(url) {
-      const regExp = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^\?&]+)/;
-      const match = url.match(regExp);
-      return match ? match[1] : "";
-    }
+    document.getElementById("create-room-2").addEventListener("click", () => {
+      const url = document.getElementById("video-url-2").value.trim();
+      if (url) createRoom(url);
+    });
   </script>
 </body>
 </html>
