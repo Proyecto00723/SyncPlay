@@ -25,7 +25,7 @@
     
     <!-- Video -->
     <section class="flex-1 bg-black rounded-lg overflow-hidden flex flex-col">
-      <!-- Controles de video (solo creador) -->
+      <!-- Controles (solo creador) -->
       <div id="video-controls" class="p-2 bg-slate-800 flex gap-2">
         <input id="video-url" type="text" placeholder="Paste YouTube URL"
           class="flex-1 p-2 rounded bg-slate-700 text-white"/>
@@ -83,7 +83,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Room & Role
+    // --- Room & Role ---
     const params = new URLSearchParams(window.location.search);
     const roomId = params.get("id");
     const isCreator = params.get("creator") === "true";
@@ -98,7 +98,7 @@
       document.getElementById("video-controls").style.display = "none";
     }
 
-    // Contador de usuarios
+    // --- User counter ---
     const userCountRef = ref(db, "rooms/" + roomId + "/users");
     runTransaction(userCountRef, (current) => (current || 0) + 1);
 
@@ -111,7 +111,7 @@
       runTransaction(userCountRef, (current) => (current || 1) - 1);
     });
 
-    // Chat
+    // --- Chat ---
     const chatRef = ref(db, "rooms/" + roomId + "/chat");
     const chatBox = document.getElementById("chat-messages");
 
@@ -149,7 +149,7 @@
       input.value = "";
     }
 
-    // Video sync
+    // --- Video sync ---
     const videoRef = ref(db, "rooms/" + roomId + "/video");
     let player;
     let currentVideoId = "";
@@ -166,7 +166,7 @@
     };
 
     function extractVideoId(url) {
-      const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
+      const regExp = /(?:youtube\.com.*(?:\\?|&)v=|youtu\\.be\\/)([^&#]+)/;
       const match = url.match(regExp);
       return match ? match[1] : "";
     }
@@ -214,7 +214,7 @@
       }
     });
 
-    // Salir
+    // --- Leave room ---
     document.getElementById("leave-room").addEventListener("click", () => {
       window.location.href = "index.html";
     });
