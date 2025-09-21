@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Create Room - SyncPlay</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-900 text-white flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-slate-800 p-4 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-cyan-400">Create Room</h1>
+  </header>
+
+  <!-- Main -->
+  <main class="flex flex-col items-center justify-center flex-1 p-4">
+    <div class="bg-slate-800 p-6 rounded-lg w-full max-w-md">
+      <label class="block mb-2 font-bold">YouTube URL</label>
+      <input id="video-url" type="text" placeholder="Paste YouTube link here"
+        class="w-full p-2 rounded bg-slate-700 text-white mb-4"/>
+
+      <button id="create-room" class="w-full bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
+        Create Room
+      </button>
+    </div>
+  </main>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDEVWAQ4eIoi2NvbYj7XeFrsgCaiCZj0uc",
+      authDomain: "ecosalas-25261.firebaseapp.com",
+      databaseURL: "https://ecosalas-25261-default-rtdb.firebaseio.com",
+      projectId: "ecosalas-25261",
+      storageBucket: "ecosalas-25261.firebasestorage.app",
+      messagingSenderId: "406797661209",
+      appId: "1:406797661209:web:260d6d3890a4342beba688",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    document.getElementById("create-room").addEventListener("click", () => {
+      const url = document.getElementById("video-url").value.trim();
+      if (!url) {
+        alert("Please enter a YouTube URL");
+        return;
+      }
+
+      // Crear nueva sala
+      const roomRef = push(ref(db, "rooms"));
+      const roomId = roomRef.key;
+
+      // Guardar video inicial en Firebase
+      set(ref(db, "rooms/" + roomId + "/video"), {
+        url: url,
+        action: "pause",
+        time: 0
+      });
+
+      // Redirigir a la sala con creator=true
+      window.location.href = `room.html?id=${roomId}&creator=true`;
+    });
+  </script>
+</body>
+</html>
