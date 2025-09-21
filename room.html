@@ -25,7 +25,7 @@
     
     <!-- Video -->
     <section class="flex-1 bg-black rounded-lg overflow-hidden flex flex-col">
-      <!-- Controles de video (solo creador) -->
+      <!-- Controles (solo creador) -->
       <div id="video-controls" class="p-2 bg-slate-800 flex gap-2">
         <input id="video-url" type="text" placeholder="Paste YouTube URL"
           class="flex-1 p-2 rounded bg-slate-700 text-white"/>
@@ -34,11 +34,9 @@
         </button>
       </div>
 
-      <!-- Contenedor del video con relación 16:9 -->
-      <div id="video-container" class="relative w-full bg-slate-950 aspect-video">
-        <p class="absolute inset-0 flex items-center justify-center text-gray-500">
-          🎬 Waiting for video...
-        </p>
+      <!-- Contenedor del video -->
+      <div id="video-container" class="relative w-full bg-slate-950 aspect-video flex items-center justify-center">
+        <div id="player"></div>
       </div>
     </section>
 
@@ -49,7 +47,7 @@
         <span id="user-count" class="text-gray-400 text-sm">0 online</span>
       </div>
 
-      <!-- Mensajes con scroll -->
+      <!-- Mensajes -->
       <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm"></div>
 
       <!-- Input -->
@@ -63,12 +61,15 @@
     </aside>
   </main>
 
+  <!-- YouTube API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+
   <!-- Firebase + Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getDatabase, ref, set, push, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // --- Firebase config ---
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDEVWAQ4eIoi2NvbYj7XeFrsgCaiCZj0uc",
       authDomain: "ecosalas-25261.firebaseapp.com",
@@ -85,7 +86,7 @@
     // --- Room & Role ---
     const params = new URLSearchParams(window.location.search);
     const roomId = params.get("id");
-    const isCreator = params.get("creator") === "true"; // 🔹 detecta rol
+    const isCreator = params.get("creator") === "true";
 
     if (!roomId) {
       alert("❌ No room ID provided");
@@ -93,12 +94,11 @@
     }
     document.getElementById("room-id-display").innerText = "Room: " + roomId;
 
-    // Si no es creador → ocultar controles de video
     if (!isCreator) {
       document.getElementById("video-controls").style.display = "none";
     }
 
-    // --- Contador de usuarios ---
+    // --- User counter ---
     const userCountRef = ref(db, "rooms/" + roomId + "/users");
     runTransaction(userCountRef, (current) => (current || 0) + 1);
 
@@ -115,7 +115,6 @@
     const chatRef = ref(db, "rooms/" + roomId + "/chat");
     const chatBox = document.getElementById("chat-messages");
 
-    // escuchar mensajes en tiempo real
     onValue(chatRef, (snap) => {
       chatBox.innerHTML = "";
       snap.forEach((msg) => {
@@ -152,35 +151,70 @@
 
     // --- Video sync ---
     const videoRef = ref(db, "rooms/" + roomId + "/video");
-    const videoContainer = document.getElementById("video-container");
+    let player;
+    let currentVideoId = "";
+
+    // Inicializa el reproductor
+    window.onYouTubeIframeAPIReady = function () {
+      player = new YT.Player("player", {
+        height: "100%",
+        width: "100%",
+        videoId: "",
+        playerVars: { autoplay: 0, controls: 1 },
+        events: { onStateChange: onPlayerStateChange }
+      });
+    };
+
+    function extractVideoId(url) {
+      const regExp = /(?:youtube\.com.*(?:\\?|&)v=|youtu\\.be\\/)([^&#]+)/;
+      const match = url.match(regExp);
+      return match ? match[1] : "";
+    }
 
     if (isCreator) {
       document.getElementById("load-video").addEventListener("click", () => {
         const url = document.getElementById("video-url").value.trim();
         if (!url) return;
-        set(videoRef, { url });
+        currentVideoId = extractVideoId(url);
+        set(videoRef, { url: currentVideoId, time: 0, state: "pause" });
+        player.loadVideoById(currentVideoId, 0);
+        player.pauseVideo();
       });
+    }
+
+    function onPlayerStateChange(event) {
+      if (isCreator && currentVideoId) {
+        if (event.data === YT.PlayerState.PLAYING) {
+          set(videoRef, { url: currentVideoId, time: player.getCurrentTime(), state: "play" });
+        }
+        if (event.data === YT.PlayerState.PAUSED) {
+          set(videoRef, { url: currentVideoId, time: player.getCurrentTime(), state: "pause" });
+        }
+      }
     }
 
     onValue(videoRef, (snap) => {
       const data = snap.val();
-      if (data && data.url) {
-        videoContainer.innerHTML = `
-          <iframe class="absolute inset-0 w-full h-full"
-            src="https://www.youtube.com/embed/${extractVideoId(data.url)}?autoplay=1"
-            frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
-          </iframe>
-        `;
+      if (data && player) {
+        if (!isCreator) {
+          if (player.getVideoData().video_id !== data.url) {
+            player.loadVideoById(data.url, data.time || 0);
+          } else {
+            if (data.state === "play") {
+              player.seekTo(data.time || 0, true);
+              player.playVideo();
+            }
+            if (data.state === "pause") {
+              player.seekTo(data.time || 0, true);
+              player.pauseVideo();
+            }
+          }
+        }
+        currentVideoId = data.url;
       }
     });
 
-    function extractVideoId(url) {
-      const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
-      const match = url.match(regExp);
-      return match ? match[1] : "";
-    }
-
-    // --- Salir de la sala ---
+    // --- Leave room ---
     document.getElementById("leave-room").addEventListener("click", () => {
       window.location.href = "index.html";
     });
