@@ -187,19 +187,17 @@
         const url = document.getElementById("video-url").value.trim();
         if (!url) return;
         const vid = extractVideoId(url);
-        console.log("Saving video:", { url, videoId: vid }); // 🔍 Debug
         set(videoRef, { url: url, videoId: vid, action: "pause", time: 0 });
         player.loadVideoById(vid);
       });
     }
 
-    // Viewers: sync con creator
+    // Viewers: siempre se alinean al instante al entrar
     onValue(videoRef, (snap) => {
       const data = snap.val();
       if (!data) return;
 
       if (!isCreator && data.videoId) {
-        console.log("Viewer syncing video:", data); // 🔍 Debug
         if (player && player.loadVideoById) {
           player.loadVideoById(data.videoId, data.time || 0);
           if (data.action === "play") player.playVideo();
@@ -208,23 +206,10 @@
       }
     });
 
-    // Botón de alinear (viewer)
-    document.getElementById("align-video").addEventListener("click", () => {
-      onValue(videoRef, (snap) => {
-        const data = snap.val();
-        if (data && !isCreator) {
-          player.seekTo(data.time || 0, true);
-          if (data.action === "play") player.playVideo();
-          else player.pauseVideo();
-        }
-      }, { onlyOnce: true });
-    });
-
     // --- Extract VideoId robusto ---
     function extractVideoId(url) {
       try {
         const u = new URL(url);
-
         if (u.hostname.includes("youtu.be")) {
           return u.pathname.replace("/", "");
         }
