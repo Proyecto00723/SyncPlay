@@ -34,7 +34,7 @@
         </button>
       </div>
 
-      <!-- Contenedor del video con relación 16:9 -->
+      <!-- Contenedor del video -->
       <div id="video-container" class="relative w-full bg-slate-950 aspect-video flex items-center justify-center">
         <div id="player"></div>
       </div>
@@ -47,7 +47,7 @@
         <span id="user-count" class="text-gray-400 text-sm">0 online</span>
       </div>
 
-      <!-- Mensajes con scroll -->
+      <!-- Mensajes -->
       <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm"></div>
 
       <!-- Input -->
@@ -69,7 +69,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getDatabase, ref, set, push, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // --- Firebase config ---
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDEVWAQ4eIoi2NvbYj7XeFrsgCaiCZj0uc",
       authDomain: "ecosalas-25261.firebaseapp.com",
@@ -83,7 +83,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // --- Room & Role ---
+    // Room & Role
     const params = new URLSearchParams(window.location.search);
     const roomId = params.get("id");
     const isCreator = params.get("creator") === "true";
@@ -94,12 +94,11 @@
     }
     document.getElementById("room-id-display").innerText = "Room: " + roomId;
 
-    // Si no es creador → ocultar controles
     if (!isCreator) {
       document.getElementById("video-controls").style.display = "none";
     }
 
-    // --- Contador de usuarios ---
+    // Contador de usuarios
     const userCountRef = ref(db, "rooms/" + roomId + "/users");
     runTransaction(userCountRef, (current) => (current || 0) + 1);
 
@@ -112,7 +111,7 @@
       runTransaction(userCountRef, (current) => (current || 1) - 1);
     });
 
-    // --- Chat ---
+    // Chat
     const chatRef = ref(db, "rooms/" + roomId + "/chat");
     const chatBox = document.getElementById("chat-messages");
 
@@ -150,7 +149,7 @@
       input.value = "";
     }
 
-    // --- Video sync ---
+    // Video sync
     const videoRef = ref(db, "rooms/" + roomId + "/video");
     let player;
     let currentVideoId = "";
@@ -162,9 +161,7 @@
         width: "100%",
         videoId: "",
         playerVars: { autoplay: 0, controls: 1 },
-        events: {
-          onStateChange: onPlayerStateChange,
-        },
+        events: { onStateChange: onPlayerStateChange }
       });
     };
 
@@ -174,7 +171,6 @@
       return match ? match[1] : "";
     }
 
-    // El creador carga un video
     if (isCreator) {
       document.getElementById("load-video").addEventListener("click", () => {
         const url = document.getElementById("video-url").value.trim();
@@ -186,7 +182,6 @@
       });
     }
 
-    // Detectar cambios en el reproductor del creador
     function onPlayerStateChange(event) {
       if (isCreator && currentVideoId) {
         if (event.data === YT.PlayerState.PLAYING) {
@@ -198,7 +193,6 @@
       }
     }
 
-    // Los viewers se sincronizan
     onValue(videoRef, (snap) => {
       const data = snap.val();
       if (data && player) {
@@ -220,7 +214,7 @@
       }
     });
 
-    // --- Salir ---
+    // Salir
     document.getElementById("leave-room").addEventListener("click", () => {
       window.location.href = "index.html";
     });
