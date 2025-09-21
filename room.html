@@ -34,11 +34,16 @@
         </button>
       </div>
 
-      <!-- Contenedor del video con relación 16:9 -->
+      <!-- Botón de alineación (solo viewers) -->
+      <div id="align-controls" class="p-2 bg-slate-800 hidden">
+        <button id="align-video" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded">
+          🔄 Align with Creator
+        </button>
+      </div>
+
+      <!-- Contenedor del video -->
       <div id="video-container" class="relative w-full bg-slate-950 aspect-video">
-        <p class="absolute inset-0 flex items-center justify-center text-gray-500">
-          🎬 Waiting for video...
-        </p>
+        <div id="player"></div>
       </div>
     </section>
 
@@ -64,9 +69,10 @@
   </main>
 
   <!-- Firebase + Logic -->
+  <script src="https://www.youtube.com/iframe_api"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, set, push, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { getDatabase, ref, set, push, onValue, runTransaction, update } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
     // --- Firebase config ---
     const firebaseConfig = {
@@ -85,7 +91,7 @@
     // --- Room & Role ---
     const params = new URLSearchParams(window.location.search);
     const roomId = params.get("id");
-    const isCreator = params.get("creator") === "true"; // 🔹 detecta rol
+    const isCreator = params.get("creator") === "true"; 
 
     if (!roomId) {
       alert("❌ No room ID provided");
@@ -93,12 +99,12 @@
     }
     document.getElementById("room-id-display").innerText = "Room: " + roomId;
 
-    // Si no es creador → ocultar controles de video
     if (!isCreator) {
       document.getElementById("video-controls").style.display = "none";
+      document.getElementById("align-controls").style.display = "block";
     }
 
-    // --- Contador de usuarios ---
+    // --- User counter ---
     const userCountRef = ref(db, "rooms/" + roomId + "/users");
     runTransaction(userCountRef, (current) => (current || 0) + 1);
 
@@ -115,7 +121,6 @@
     const chatRef = ref(db, "rooms/" + roomId + "/chat");
     const chatBox = document.getElementById("chat-messages");
 
-    // escuchar mensajes en tiempo real
     onValue(chatRef, (snap) => {
       chatBox.innerHTML = "";
       snap.forEach((msg) => {
@@ -140,38 +145,75 @@
     function sendMessage() {
       const input = document.getElementById("chat-input");
       if (!input.value.trim()) return;
-
       push(chatRef, {
         user: isCreator ? "👑 Creator" : "🙋 Viewer",
         text: input.value.trim(),
         time: Date.now()
       });
-
       input.value = "";
     }
 
-    // --- Video sync ---
+    // --- Video Sync ---
+    let player;
     const videoRef = ref(db, "rooms/" + roomId + "/video");
-    const videoContainer = document.getElementById("video-container");
+
+    window.onYouTubeIframeAPIReady = () => {
+      player = new YT.Player("player", {
+        height: "100%",
+        width: "100%",
+        videoId: "",
+        events: {
+          onReady: () => console.log("✅ Player ready"),
+          onStateChange: handlePlayerState
+        }
+      });
+    };
+
+    function handlePlayerState(event) {
+      if (isCreator) {
+        if (event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.PAUSED) {
+          update(videoRef, {
+            time: player.getCurrentTime(),
+            action: event.data === YT.PlayerState.PLAYING ? "play" : "pause"
+          });
+        }
+      }
+    }
 
     if (isCreator) {
       document.getElementById("load-video").addEventListener("click", () => {
         const url = document.getElementById("video-url").value.trim();
         if (!url) return;
-        set(videoRef, { url });
+        const vid = extractVideoId(url);
+        set(videoRef, { url: url, videoId: vid, action: "pause", time: 0 });
+        player.loadVideoById(vid);
       });
     }
 
+    // Viewers: sync con creator
     onValue(videoRef, (snap) => {
       const data = snap.val();
-      if (data && data.url) {
-        videoContainer.innerHTML = `
-          <iframe class="absolute inset-0 w-full h-full"
-            src="https://www.youtube.com/embed/${extractVideoId(data.url)}?autoplay=1"
-            frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
-          </iframe>
-        `;
+      if (!data) return;
+
+      if (!isCreator && data.videoId) {
+        if (player && player.loadVideoById) {
+          player.loadVideoById(data.videoId, data.time || 0);
+          if (data.action === "play") player.playVideo();
+          else player.pauseVideo();
+        }
       }
+    });
+
+    // Botón de alinear (viewer)
+    document.getElementById("align-video").addEventListener("click", () => {
+      onValue(videoRef, (snap) => {
+        const data = snap.val();
+        if (data && !isCreator) {
+          player.seekTo(data.time || 0, true);
+          if (data.action === "play") player.playVideo();
+          else player.pauseVideo();
+        }
+      }, { onlyOnce: true });
     });
 
     function extractVideoId(url) {
@@ -180,7 +222,7 @@
       return match ? match[1] : "";
     }
 
-    // --- Salir de la sala ---
+    // --- Leave room ---
     document.getElementById("leave-room").addEventListener("click", () => {
       window.location.href = "index.html";
     });
