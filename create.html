@@ -45,12 +45,29 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    // Función para sacar el videoId y guardar siempre en formato https://youtu.be/ID
+    function normalizeYouTubeUrl(url) {
+      try {
+        const u = new URL(url);
+        if (u.hostname.includes("youtu.be")) {
+          return "https://youtu.be/" + u.pathname.slice(1);
+        } else if (u.searchParams.get("v")) {
+          return "https://youtu.be/" + u.searchParams.get("v");
+        }
+      } catch (e) {
+        console.warn("⚠️ URL inválida:", url);
+      }
+      return url; // fallback
+    }
+
     document.getElementById("create-room").addEventListener("click", () => {
-      const url = document.getElementById("video-url").value.trim();
-      if (!url) {
+      const rawUrl = document.getElementById("video-url").value.trim();
+      if (!rawUrl) {
         alert("Please enter a YouTube URL");
         return;
       }
+
+      const cleanUrl = normalizeYouTubeUrl(rawUrl);
 
       // Crear nueva sala
       const roomRef = push(ref(db, "rooms"));
@@ -58,7 +75,7 @@
 
       // Guardar video inicial en Firebase
       set(ref(db, "rooms/" + roomId + "/video"), {
-        url: url,
+        url: cleanUrl,
         action: "pause",
         time: 0
       });
