@@ -45,7 +45,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Crear sala
     document.getElementById("create-room").addEventListener("click", () => {
       const url = document.getElementById("video-url").value.trim();
       if (!url) {
@@ -53,18 +52,18 @@
         return;
       }
 
-      // Generar nueva sala
+      // Crear nueva sala
       const roomRef = push(ref(db, "rooms"));
       const roomId = roomRef.key;
 
-      // Guardar datos iniciales del video
+      // Guardar video inicial en Firebase
       set(ref(db, "rooms/" + roomId + "/video"), {
         url: url,
-        action: "pause", // estado inicial
-        time: 0          // empieza en 0 segundos
+        action: "pause",
+        time: 0
       });
 
-      // Redirigir al creador a la sala
+      // Redirigir a la sala con creator=true
       window.location.href = `room.html?id=${roomId}&creator=true`;
     });
   </script>
