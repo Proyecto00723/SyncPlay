@@ -35,11 +35,9 @@
         </button>
       </div>
 
-      <!-- Contenedor del video con relación 16:9 -->
-      <div id="video-container" class="relative w-full bg-slate-950 aspect-video">
-        <p class="absolute inset-0 flex items-center justify-center text-gray-500">
-          🎬 Waiting for video...
-        </p>
+      <!-- Contenedor del video -->
+      <div id="video-container" class="relative w-full bg-slate-950 aspect-video flex items-center justify-center text-gray-500">
+        🎬 Waiting for video...
       </div>
 
       <!-- Botón para viewers -->
@@ -158,7 +156,7 @@
               }
             });
           } else {
-            player.loadVideoById(extractVideoId(data.url));
+            player.loadVideoById({ videoId: extractVideoId(data.url), startSeconds: data.time || 0 });
           }
         }
       });
@@ -175,7 +173,11 @@
       // update time every 5s
       setInterval(() => {
         if (player && player.getCurrentTime) {
-          set(videoRef, { url: "https://youtu.be/" + player.getVideoData().video_id, time: Math.floor(player.getCurrentTime()), action: player.getPlayerState() === 1 ? "play" : "pause" });
+          set(videoRef, { 
+            url: "https://youtu.be/" + player.getVideoData().video_id, 
+            time: Math.floor(player.getCurrentTime()), 
+            action: player.getPlayerState() === 1 ? "play" : "pause" 
+          });
         }
       }, 5000);
     }
@@ -191,7 +193,8 @@
     });
 
     function extractVideoId(url) {
-      const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
+      // acepta youtube.com, youtu.be, youtu.be con params
+      const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#?\s]+)/;
       const match = url.match(regExp);
       return match ? match[1] : "";
     }
