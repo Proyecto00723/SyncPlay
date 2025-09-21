@@ -151,22 +151,30 @@
         const data = snap.val();
         console.log("📡 Datos de Firebase:", data);
         if (data && data.url) {
+          const vid = extractVideoId(data.url);
+          if (!vid) return;
+
           if (!player) {
-            const vid = extractVideoId(data.url);
-            console.log("🎬 Creando player con ID:", vid);
             document.getElementById("video-container").innerHTML = `<div id="yt-player"></div>`;
             player = new YT.Player("yt-player", {
               videoId: vid,
               events: {
                 onReady: () => { 
                   console.log("▶️ Player listo");
-                  if (!isCreator) player.seekTo(data.time || 0, true); 
+                  if (!isCreator) {
+                    player.seekTo(data.time || 0, true);
+                    if (data.action === "play") player.playVideo();
+                    else player.pauseVideo();
+                  }
                 },
               }
             });
           } else {
-            console.log("🔄 Cargando nuevo video:", data.url);
-            player.loadVideoById(extractVideoId(data.url));
+            // Sincronizar viewers en tiempo real
+            if (isCreator) return; 
+            player.seekTo(data.time || 0, true);
+            if (data.action === "play") player.playVideo();
+            else player.pauseVideo();
           }
         }
       });
@@ -193,7 +201,7 @@
       }, 5000);
     }
 
-    // Viewers: align button
+    // Viewers: align button (respaldo)
     document.getElementById("align-btn").addEventListener("click", () => {
       onValue(videoRef, (snap) => {
         const data = snap.val();
