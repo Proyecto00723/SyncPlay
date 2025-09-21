@@ -26,12 +26,25 @@
     <!-- Video -->
     <section class="flex-1 bg-black rounded-lg overflow-hidden flex flex-col">
       <!-- Controles de video (solo creador) -->
-      <div id="video-controls" class="p-2 bg-slate-800 flex gap-2">
-        <input id="video-url" type="text" placeholder="Paste YouTube URL"
-          class="flex-1 p-2 rounded bg-slate-700 text-white"/>
-        <button id="load-video" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
-          <i class="fas fa-play"></i> Load
-        </button>
+      <div id="video-controls" class="p-2 bg-slate-800 flex flex-col gap-2">
+
+        <!-- Input para URLs estándar -->
+        <div class="flex gap-2">
+          <input id="video-url-1" type="text" placeholder="Paste standard YouTube URL"
+            class="flex-1 p-2 rounded bg-slate-700 text-white"/>
+          <button id="load-video-1" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
+            <i class="fas fa-play"></i> Load 1
+          </button>
+        </div>
+
+        <!-- Input para URLs con ?si= -->
+        <div class="flex gap-2">
+          <input id="video-url-2" type="text" placeholder="Paste YouTube URL with ?si="
+            class="flex-1 p-2 rounded bg-slate-700 text-white"/>
+          <button id="load-video-2" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded">
+            <i class="fas fa-play"></i> Load 2
+          </button>
+        </div>
       </div>
 
       <!-- Botón de alineación (solo viewers) -->
@@ -181,10 +194,20 @@
     }
 
     if (isCreator) {
-      document.getElementById("load-video").addEventListener("click", () => {
-        const url = document.getElementById("video-url").value.trim();
+      // Botón 1 (URL estándar)
+      document.getElementById("load-video-1").addEventListener("click", () => {
+        const url = document.getElementById("video-url-1").value.trim();
         if (!url) return;
         const vid = extractVideoId(url);
+        set(videoRef, { url: url, videoId: vid, action: "pause", time: 0 });
+        player.loadVideoById(vid);
+      });
+
+      // Botón 2 (URL con ?si=)
+      document.getElementById("load-video-2").addEventListener("click", () => {
+        const url = document.getElementById("video-url-2").value.trim();
+        if (!url) return;
+        const vid = extractVideoIdSi(url);
         set(videoRef, { url: url, videoId: vid, action: "pause", time: 0 });
         player.loadVideoById(vid);
       });
@@ -216,8 +239,15 @@
       }, { onlyOnce: true });
     });
 
+    // --- Funciones para extraer IDs ---
     function extractVideoId(url) {
       const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
+      const match = url.match(regExp);
+      return match ? match[1] : "";
+    }
+
+    function extractVideoIdSi(url) {
+      const regExp = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^\?&]+)/;
       const match = url.match(regExp);
       return match ? match[1] : "";
     }
