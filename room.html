@@ -27,21 +27,11 @@
     <section class="flex-1 bg-black rounded-lg overflow-hidden flex flex-col">
       <!-- Controles de video (solo creador) -->
       <div id="video-controls" class="p-2 bg-slate-800 flex flex-col gap-2">
-        <!-- Input para URLs estándar -->
         <div class="flex gap-2">
-          <input id="video-url-1" type="text" placeholder="Paste standard YouTube URL"
+          <input id="video-url" type="text" placeholder="Paste YouTube URL"
             class="flex-1 p-2 rounded bg-slate-700 text-white"/>
-          <button id="load-video-1" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
-            <i class="fas fa-play"></i> Load 1
-          </button>
-        </div>
-
-        <!-- Input para URLs con ?si= -->
-        <div class="flex gap-2">
-          <input id="video-url-2" type="text" placeholder="Paste YouTube URL with ?si="
-            class="flex-1 p-2 rounded bg-slate-700 text-white"/>
-          <button id="load-video-2" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded">
-            <i class="fas fa-play"></i> Load 2
+          <button id="load-video" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
+            <i class="fas fa-play"></i> Load
           </button>
         </div>
       </div>
@@ -66,7 +56,7 @@
         <span id="user-count" class="text-gray-400 text-sm">0 online</span>
       </div>
 
-      <!-- Mensajes con scroll -->
+      <!-- Mensajes -->
       <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm"></div>
 
       <!-- Input -->
@@ -175,20 +165,7 @@
         width: "100%",
         videoId: "",
         events: {
-          onReady: () => {
-            console.log("✅ Player ready");
-            if (!isCreator) {
-              // Viewer: cargar estado inicial al entrar
-              onValue(videoRef, (snap) => {
-                const data = snap.val();
-                if (data && data.videoId) {
-                  player.loadVideoById(data.videoId, data.time || 0);
-                  if (data.action === "play") player.playVideo();
-                  else player.pauseVideo();
-                }
-              }, { onlyOnce: true });
-            }
-          },
+          onReady: () => console.log("✅ Player ready"),
           onStateChange: handlePlayerState
         }
       });
@@ -205,65 +182,33 @@
       }
     }
 
-    // --- Función universal para IDs ---
-    function extractVideoId(url) {
-      try {
-        const u = new URL(url);
-        if (u.hostname.includes("youtu.be")) {
-          return u.pathname.replace("/", "");
-        }
-        if (u.searchParams.get("v")) {
-          return u.searchParams.get("v");
-        }
-      } catch (e) {
-        const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
-        const match = url.match(regExp);
-        return match ? match[1] : "";
-      }
-      return "";
-    }
-
-    // --- Creator: cargar video ---
     if (isCreator) {
-      const loadVideo = (url) => {
+      document.getElementById("load-video").addEventListener("click", () => {
+        const url = document.getElementById("video-url").value.trim();
         if (!url) return;
         const vid = extractVideoId(url);
-        if (!vid) return alert("❌ Invalid YouTube URL");
-
-        set(videoRef, { url, videoId: vid, action: "pause", time: 0 });
+        console.log("Saving video:", { url, videoId: vid }); // 🔍 Debug
+        set(videoRef, { url: url, videoId: vid, action: "pause", time: 0 });
         player.loadVideoById(vid);
-      };
-
-      document.getElementById("load-video-1").addEventListener("click", () => {
-        loadVideo(document.getElementById("video-url-1").value.trim());
-      });
-
-      document.getElementById("load-video-2").addEventListener("click", () => {
-        loadVideo(document.getElementById("video-url-2").value.trim());
       });
     }
 
-    // --- Viewers: sync con creator ---
-    let lastVideoId = null;
+    // Viewers: sync con creator
     onValue(videoRef, (snap) => {
       const data = snap.val();
       if (!data) return;
 
       if (!isCreator && data.videoId) {
+        console.log("Viewer syncing video:", data); // 🔍 Debug
         if (player && player.loadVideoById) {
-          if (lastVideoId !== data.videoId) {
-            player.loadVideoById(data.videoId, data.time || 0);
-            lastVideoId = data.videoId;
-          } else {
-            player.seekTo(data.time || 0, true);
-            if (data.action === "play") player.playVideo();
-            else player.pauseVideo();
-          }
+          player.loadVideoById(data.videoId, data.time || 0);
+          if (data.action === "play") player.playVideo();
+          else player.pauseVideo();
         }
       }
     });
 
-    // --- Botón de alinear (viewer) ---
+    // Botón de alinear (viewer)
     document.getElementById("align-video").addEventListener("click", () => {
       onValue(videoRef, (snap) => {
         const data = snap.val();
@@ -274,6 +219,25 @@
         }
       }, { onlyOnce: true });
     });
+
+    // --- Extract VideoId robusto ---
+    function extractVideoId(url) {
+      try {
+        const u = new URL(url);
+
+        if (u.hostname.includes("youtu.be")) {
+          return u.pathname.replace("/", "");
+        }
+        if (u.searchParams.has("v")) {
+          return u.searchParams.get("v");
+        }
+      } catch (e) {
+        const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
+        const match = url.match(regExp);
+        return match ? match[1] : "";
+      }
+      return "";
+    }
 
     // --- Leave room ---
     document.getElementById("leave-room").addEventListener("click", () => {
