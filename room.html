@@ -3,66 +3,33 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SyncPlay Room</title>
+  <title>Create Room - SyncPlay</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 </head>
 <body class="min-h-screen bg-slate-900 text-white flex flex-col">
 
   <!-- Header -->
   <header class="bg-slate-800 p-4 flex justify-between items-center">
-    <h1 class="text-2xl font-bold text-cyan-400">SyncPlay</h1>
-    <div class="flex items-center gap-4">
-      <span id="room-id-display" class="text-gray-300"></span>
-      <button id="leave-room" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
-        <i class="fas fa-sign-out-alt"></i> Leave
-      </button>
-    </div>
+    <h1 class="text-2xl font-bold text-cyan-400">Create Room</h1>
   </header>
 
   <!-- Main -->
-  <main class="flex flex-1 flex-col md:flex-row p-4 gap-4">
-    <!-- Video -->
-    <section class="flex-1 bg-black rounded-lg overflow-hidden flex flex-col">
-      <div id="controls" class="p-2 bg-slate-800 flex gap-2">
-        <input id="video-url" type="text" placeholder="Paste YouTube URL"
-          class="flex-1 p-2 rounded bg-slate-700 text-white"/>
-        <button id="load-video" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
-          <i class="fas fa-play"></i> Load
-        </button>
-      </div>
+  <main class="flex flex-col items-center justify-center flex-1 p-4">
+    <div class="bg-slate-800 p-6 rounded-lg w-full max-w-md">
+      <label class="block mb-2 font-bold">YouTube URL</label>
+      <input id="video-url" type="text" placeholder="Paste YouTube link here"
+        class="w-full p-2 rounded bg-slate-700 text-white mb-4"/>
 
-      <!-- contenedor del video -->
-      <div id="video-container" class="relative w-full bg-slate-950 aspect-video">
-        <p class="absolute inset-0 flex items-center justify-center text-gray-500">
-          🎬 Waiting for video...
-        </p>
-      </div>
-    </section>
-
-    <!-- Chat -->
-    <aside class="w-full md:w-1/3 flex flex-col bg-slate-800 rounded-lg max-h-[calc(100vh-120px)]">
-      <div class="p-2 border-b border-slate-700 flex justify-between">
-        <span class="font-bold">💬 Chat</span>
-        <span id="user-count" class="text-gray-400 text-sm">0 online</span>
-      </div>
-
-      <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm"></div>
-
-      <div class="p-2 border-t border-slate-700 flex gap-2">
-        <input id="chat-input" type="text" placeholder="Type a message..."
-          class="flex-1 p-2 rounded bg-slate-700 text-white text-sm"/>
-        <button id="send-chat" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded">
-          <i class="fas fa-paper-plane"></i>
-        </button>
-      </div>
-    </aside>
+      <button id="create-room" class="w-full bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
+        Create Room
+      </button>
+    </div>
   </main>
 
-  <!-- Firebase + Logic -->
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, set, push, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
     // Firebase config
     const firebaseConfig = {
@@ -78,92 +45,27 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Room
-    const params = new URLSearchParams(window.location.search);
-    const roomId = params.get("id");
-    if (!roomId) {
-      alert("❌ No room ID provided");
-      window.location.href = "index.html";
-    }
-    document.getElementById("room-id-display").innerText = "Room: " + roomId;
-
-    // Contador de usuarios
-    const userCountRef = ref(db, "rooms/" + roomId + "/users");
-    runTransaction(userCountRef, (current) => (current || 0) + 1);
-    onValue(userCountRef, (snap) => {
-      const count = snap.val() || 0;
-      document.getElementById("user-count").innerText = count + " online";
-    });
-    window.addEventListener("beforeunload", () => {
-      runTransaction(userCountRef, (current) => (current || 1) - 1);
-    });
-
-    // Chat
-    const chatRef = ref(db, "rooms/" + roomId + "/chat");
-    const chatBox = document.getElementById("chat-messages");
-    onValue(chatRef, (snap) => {
-      chatBox.innerHTML = "";
-      snap.forEach((msg) => {
-        const data = msg.val();
-        const div = document.createElement("div");
-        div.className = "bg-slate-700 p-2 rounded break-words";
-        div.innerHTML = `<span class="text-cyan-300 font-bold">${data.user}</span> 
-                         <span class="text-gray-400 text-xs">[${new Date(data.time).toLocaleTimeString()}]</span><br>
-                         ${data.text}`;
-        chatBox.appendChild(div);
-      });
-      chatBox.scrollTop = chatBox.scrollHeight;
-    });
-
-    function sendMessage() {
-      const input = document.getElementById("chat-input");
-      if (!input.value.trim()) return;
-      push(chatRef, {
-        user: "Anon",
-        text: input.value.trim(),
-        time: Date.now()
-      });
-      input.value = "";
-    }
-    document.getElementById("send-chat").addEventListener("click", sendMessage);
-    document.getElementById("chat-input").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
-
-    // Video sync
-    const videoRef = ref(db, "rooms/" + roomId + "/video");
-    const videoContainer = document.getElementById("video-container");
-
-    function extractVideoId(url) {
-      const regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-      const match = url.match(regExp);
-      return match ? match[1] : "";
-    }
-
-    document.getElementById("load-video").addEventListener("click", () => {
+    // Crear sala
+    document.getElementById("create-room").addEventListener("click", () => {
       const url = document.getElementById("video-url").value.trim();
-      if (!url) return;
-      set(videoRef, { url });
-    });
-
-    onValue(videoRef, (snap) => {
-      const data = snap.val();
-      if (data && data.url) {
-        const videoId = extractVideoId(data.url);
-        if (videoId) {
-          videoContainer.innerHTML = `
-            <iframe class="absolute inset-0 w-full h-full"
-              src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1"
-              frameborder="0" allow="encrypted-media" allowfullscreen>
-            </iframe>
-          `;
-        }
+      if (!url) {
+        alert("Please enter a YouTube URL");
+        return;
       }
-    });
 
-    // Salir
-    document.getElementById("leave-room").addEventListener("click", () => {
-      window.location.href = "index.html";
+      // Generar nueva sala
+      const roomRef = push(ref(db, "rooms"));
+      const roomId = roomRef.key;
+
+      // Guardar datos iniciales del video
+      set(ref(db, "rooms/" + roomId + "/video"), {
+        url: url,
+        action: "pause", // estado inicial
+        time: 0          // empieza en 0 segundos
+      });
+
+      // Redirigir al creador a la sala
+      window.location.href = `room.html?id=${roomId}&creator=true`;
     });
   </script>
 </body>
