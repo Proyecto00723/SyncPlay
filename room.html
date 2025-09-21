@@ -157,6 +157,7 @@
 
     // --- Video Sync ---
     let player;
+    let syncInterval;
     const videoRef = ref(db, "rooms/" + roomId + "/video");
 
     window.onYouTubeIframeAPIReady = () => {
@@ -172,13 +173,24 @@
     };
 
     function handlePlayerState(event) {
-      if (isCreator) {
-        if (event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.PAUSED) {
+      if (!isCreator) return;
+
+      if (event.data === YT.PlayerState.PLAYING) {
+        update(videoRef, { time: player.getCurrentTime(), action: "play" });
+
+        syncInterval = setInterval(() => {
           update(videoRef, {
             time: player.getCurrentTime(),
-            action: event.data === YT.PlayerState.PLAYING ? "play" : "pause"
+            action: "play"
           });
-        }
+        }, 2000);
+
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        clearInterval(syncInterval);
+        update(videoRef, {
+          time: player.getCurrentTime(),
+          action: "pause"
+        });
       }
     }
 
@@ -195,15 +207,17 @@
     // Viewers: siempre se alinean al instante al entrar
     onValue(videoRef, (snap) => {
       const data = snap.val();
-      if (!data) return;
+      if (!data || isCreator || !player) return;
 
-      if (!isCreator && data.videoId) {
-        if (player && player.loadVideoById) {
-          player.loadVideoById(data.videoId, data.time || 0);
-          if (data.action === "play") player.playVideo();
-          else player.pauseVideo();
-        }
+      if (data.videoId && player.getVideoData().video_id !== data.videoId) {
+        player.loadVideoById(data.videoId, data.time || 0);
+      } else {
+        const diff = Math.abs(player.getCurrentTime() - data.time);
+        if (diff > 1) player.seekTo(data.time, true);
       }
+
+      if (data.action === "play") player.playVideo();
+      else player.pauseVideo();
     });
 
     // --- Extract VideoId robusto ---
