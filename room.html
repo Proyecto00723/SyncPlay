@@ -36,8 +36,10 @@
       </div>
 
       <!-- Contenedor del video -->
-      <div id="video-container" class="relative w-full bg-slate-950 aspect-video flex items-center justify-center text-gray-500">
-        🎬 Waiting for video...
+      <div id="video-container" class="relative w-full bg-slate-950 aspect-video">
+        <p class="absolute inset-0 flex items-center justify-center text-gray-500">
+          🎬 Waiting for video...
+        </p>
       </div>
 
       <!-- Botón para viewers -->
@@ -144,19 +146,27 @@
 
     // YouTube API ready
     window.onYouTubeIframeAPIReady = () => {
+      console.log("✅ YouTube API lista");
       onValue(videoRef, (snap) => {
         const data = snap.val();
+        console.log("📡 Datos de Firebase:", data);
         if (data && data.url) {
           if (!player) {
+            const vid = extractVideoId(data.url);
+            console.log("🎬 Creando player con ID:", vid);
             document.getElementById("video-container").innerHTML = `<div id="yt-player"></div>`;
             player = new YT.Player("yt-player", {
-              videoId: extractVideoId(data.url),
+              videoId: vid,
               events: {
-                onReady: () => { if (!isCreator) player.seekTo(data.time || 0, true); },
+                onReady: () => { 
+                  console.log("▶️ Player listo");
+                  if (!isCreator) player.seekTo(data.time || 0, true); 
+                },
               }
             });
           } else {
-            player.loadVideoById({ videoId: extractVideoId(data.url), startSeconds: data.time || 0 });
+            console.log("🔄 Cargando nuevo video:", data.url);
+            player.loadVideoById(extractVideoId(data.url));
           }
         }
       });
@@ -167,6 +177,7 @@
       document.getElementById("load-video").addEventListener("click", () => {
         const url = document.getElementById("video-url").value.trim();
         if (!url) return;
+        console.log("📤 Guardando video en Firebase:", url);
         set(videoRef, { url, time: 0, action: "pause" });
       });
 
@@ -187,16 +198,25 @@
       onValue(videoRef, (snap) => {
         const data = snap.val();
         if (data && player) {
+          console.log("🔄 Align con:", data);
           player.loadVideoById({ videoId: extractVideoId(data.url), startSeconds: data.time || 0 });
         }
       }, { onlyOnce: true });
     });
 
+    // --- Mejor extractVideoId ---
     function extractVideoId(url) {
-      // acepta youtube.com, youtu.be, youtu.be con params
-      const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#?\s]+)/;
-      const match = url.match(regExp);
-      return match ? match[1] : "";
+      try {
+        const u = new URL(url);
+        if (u.hostname.includes("youtu.be")) {
+          return u.pathname.slice(1);
+        } else if (u.searchParams.get("v")) {
+          return u.searchParams.get("v");
+        }
+      } catch (e) {
+        console.warn("⚠️ No se pudo parsear URL:", url);
+      }
+      return "";
     }
 
     // Leave room
