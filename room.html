@@ -3,35 +3,77 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Create Room - SyncPlay</title>
+  <title>SyncPlay Room</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 </head>
 <body class="min-h-screen bg-slate-900 text-white flex flex-col">
 
   <!-- Header -->
   <header class="bg-slate-800 p-4 flex justify-between items-center">
-    <h1 class="text-2xl font-bold text-cyan-400">Create Room</h1>
+    <h1 class="text-2xl font-bold text-cyan-400">SyncPlay</h1>
+    <div class="flex items-center gap-4">
+      <span id="room-id-display" class="text-gray-300"></span>
+      <button id="leave-room" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
+        <i class="fas fa-sign-out-alt"></i> Leave
+      </button>
+    </div>
   </header>
 
   <!-- Main -->
-  <main class="flex flex-col items-center justify-center flex-1 p-4">
-    <div class="bg-slate-800 p-6 rounded-lg w-full max-w-md">
-      <label class="block mb-2 font-bold">YouTube URL</label>
-      <input id="video-url" type="text" placeholder="Paste YouTube link here"
-        class="w-full p-2 rounded bg-slate-700 text-white mb-4"/>
+  <main class="flex flex-1 flex-col md:flex-row p-4 gap-4">
+    
+    <!-- Video -->
+    <section class="flex-1 bg-black rounded-lg overflow-hidden flex flex-col">
+      <!-- Controles de video (solo creador) -->
+      <div id="video-controls" class="p-2 bg-slate-800 flex gap-2">
+        <input id="video-url" type="text" placeholder="Paste YouTube URL"
+          class="flex-1 p-2 rounded bg-slate-700 text-white"/>
+        <button id="load-video" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
+          <i class="fas fa-play"></i> Load
+        </button>
+      </div>
 
-      <button id="create-room" class="w-full bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
-        Create Room
-      </button>
-    </div>
+      <!-- Contenedor del video -->
+      <div class="relative w-full bg-slate-950 aspect-video">
+        <div id="video-container" class="absolute inset-0"></div>
+      </div>
+
+      <!-- Botón para viewers -->
+      <div id="sync-btn-container" class="hidden p-2 bg-slate-800 text-center">
+        <button id="sync-viewer" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded">
+          <i class="fas fa-sync-alt"></i> Alinear con Creador
+        </button>
+      </div>
+    </section>
+
+    <!-- Chat -->
+    <aside class="w-full md:w-1/3 flex flex-col bg-slate-800 rounded-lg max-h-[calc(100vh-120px)]">
+      <div class="p-2 border-b border-slate-700 flex justify-between">
+        <span class="font-bold">💬 Chat</span>
+        <span id="user-count" class="text-gray-400 text-sm">0 online</span>
+      </div>
+
+      <!-- Mensajes -->
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm"></div>
+
+      <!-- Input -->
+      <div class="p-2 border-t border-slate-700 flex gap-2">
+        <input id="chat-input" type="text" placeholder="Type a message..."
+          class="flex-1 p-2 rounded bg-slate-700 text-white text-sm"/>
+        <button id="send-chat" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+    </aside>
   </main>
 
-  <!-- Firebase -->
+  <!-- Firebase + Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { getDatabase, ref, set, push, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // Firebase config
+    // --- Firebase config ---
     const firebaseConfig = {
       apiKey: "AIzaSyDEVWAQ4eIoi2NvbYj7XeFrsgCaiCZj0uc",
       authDomain: "ecosalas-25261.firebaseapp.com",
@@ -45,27 +87,156 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Crear sala
-    document.getElementById("create-room").addEventListener("click", () => {
-      const url = document.getElementById("video-url").value.trim();
-      if (!url) {
-        alert("Please enter a YouTube URL");
-        return;
-      }
+    // --- Room & Role ---
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get("id");
+    const isCreator = params.get("creator") === "true";
 
-      // Generar nueva sala
-      const roomRef = push(ref(db, "rooms"));
-      const roomId = roomRef.key;
+    if (!roomId) {
+      alert("❌ No room ID provided");
+      window.location.href = "index.html";
+    }
+    document.getElementById("room-id-display").innerText = "Room: " + roomId;
 
-      // Guardar datos iniciales del video
-      set(ref(db, "rooms/" + roomId + "/video"), {
-        url: url,
-        action: "pause", // estado inicial
-        time: 0          // empieza en 0 segundos
+    if (!isCreator) {
+      document.getElementById("video-controls").style.display = "none";
+      document.getElementById("sync-btn-container").style.display = "block";
+    }
+
+    // --- Contador de usuarios ---
+    const userCountRef = ref(db, "rooms/" + roomId + "/users");
+    runTransaction(userCountRef, (current) => (current || 0) + 1);
+
+    onValue(userCountRef, (snap) => {
+      const count = snap.val() || 0;
+      document.getElementById("user-count").innerText = count + " online";
+    });
+
+    window.addEventListener("beforeunload", () => {
+      runTransaction(userCountRef, (current) => (current || 1) - 1);
+    });
+
+    // --- Chat ---
+    const chatRef = ref(db, "rooms/" + roomId + "/chat");
+    const chatBox = document.getElementById("chat-messages");
+
+    onValue(chatRef, (snap) => {
+      chatBox.innerHTML = "";
+      snap.forEach((msg) => {
+        const data = msg.val();
+        const div = document.createElement("div");
+        div.className = "bg-slate-700 p-2 rounded break-words";
+        div.innerHTML = `
+          <span class="text-cyan-300 font-bold">${data.user}</span> 
+          <span class="text-gray-400 text-xs">[${new Date(data.time).toLocaleTimeString()}]</span><br>
+          ${data.text}
+        `;
+        chatBox.appendChild(div);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    document.getElementById("send-chat").addEventListener("click", sendMessage);
+    document.getElementById("chat-input").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    function sendMessage() {
+      const input = document.getElementById("chat-input");
+      if (!input.value.trim()) return;
+
+      push(chatRef, {
+        user: isCreator ? "👑 Creator" : "🙋 Viewer",
+        text: input.value.trim(),
+        time: Date.now()
       });
 
-      // Redirigir al creador a la sala
-      window.location.href = `room.html?id=${roomId}&creator=true`;
+      input.value = "";
+    }
+
+    // --- Video sync ---
+    const videoRef = ref(db, "rooms/" + roomId + "/video");
+    let player;
+
+    function loadYouTubeAPI() {
+      if (window.YT) return initPlayer();
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+      window.onYouTubeIframeAPIReady = initPlayer;
+    }
+
+    function initPlayer() {
+      player = new YT.Player("video-container", {
+        height: "100%",
+        width: "100%",
+        videoId: "",
+        playerVars: { autoplay: 0, controls: 1 },
+        events: {
+          onReady: () => {
+            if (isCreator) {
+              // Guardar eventos del creador
+              setInterval(() => {
+                set(videoRef, {
+                  url: player.getVideoUrl(),
+                  action: player.getPlayerState() === 1 ? "play" : "pause",
+                  time: Math.floor(player.getCurrentTime())
+                });
+              }, 2000);
+            }
+          }
+        }
+      });
+    }
+
+    // --- Viewer sync ---
+    onValue(videoRef, (snap) => {
+      const data = snap.val();
+      if (!data || !player) return;
+
+      const videoId = extractVideoId(data.url);
+      if (player.getVideoData().video_id !== videoId) {
+        player.loadVideoById(videoId, data.time);
+      } else {
+        if (data.action === "play") {
+          player.playVideo();
+        } else {
+          player.pauseVideo();
+        }
+      }
+    });
+
+    // --- Botón de alineación manual ---
+    document.getElementById("sync-viewer")?.addEventListener("click", () => {
+      onValue(videoRef, (snap) => {
+        const data = snap.val();
+        if (data && player) {
+          player.seekTo(data.time, true);
+        }
+      }, { onlyOnce: true });
+    });
+
+    function extractVideoId(url) {
+      const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
+      const match = url.match(regExp);
+      return match ? match[1] : "";
+    }
+
+    // --- Load video (creator only) ---
+    if (isCreator) {
+      document.getElementById("load-video").addEventListener("click", () => {
+        const url = document.getElementById("video-url").value.trim();
+        if (!url) return;
+        set(videoRef, { url, action: "pause", time: 0 });
+      });
+    }
+
+    // --- Init ---
+    loadYouTubeAPI();
+
+    // --- Salir ---
+    document.getElementById("leave-room").addEventListener("click", () => {
+      window.location.href = "index.html";
     });
   </script>
 </body>
