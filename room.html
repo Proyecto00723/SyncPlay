@@ -6,15 +6,30 @@
   <title>SyncPlay Room</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    .brand-gradient { background: linear-gradient(90deg, #06b6d4 0%, #7c3aed 50%, #10b981 100%); }
+    .logo-shape { width:48px; height:48px; display:inline-grid; place-items:center; border-radius:12px; }
+    .logo-text { font-weight:700; letter-spacing:-0.02em; }
+    .soft-glow { box-shadow: 0 6px 24px rgba(16,185,129,0.12); }
+  </style>
 </head>
 <body class="min-h-screen bg-slate-900 text-white flex flex-col">
 
   <!-- Header -->
-  <header class="bg-slate-800 p-4 flex justify-between items-center">
-    <h1 class="text-2xl font-bold text-cyan-400">SyncPlay</h1>
-    <div class="flex items-center gap-4">
-      <span id="room-id-display" class="text-gray-300"></span>
-      <button id="leave-room" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded">
+  <header class="flex items-center gap-4 p-4 bg-slate-800 shadow-lg">
+    <!-- Logo -->
+    <div class="logo-shape brand-gradient soft-glow">
+      <span class="text-white font-bold text-xl">SP</span>
+    </div>
+    <!-- Title -->
+    <div>
+      <h1 class="text-2xl text-cyan-300 logo-text">SyncPlay</h1>
+      <p class="text-xs text-slate-400">Watch together • cyan · purple · emerald</p>
+    </div>
+    <!-- Room info -->
+    <div class="ml-auto flex items-center gap-4">
+      <span id="room-id-display" class="text-gray-300 text-sm"></span>
+      <button id="leave-room" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm">
         <i class="fas fa-sign-out-alt"></i> Leave
       </button>
     </div>
@@ -22,57 +37,50 @@
 
   <!-- Main -->
   <main class="flex flex-1 flex-col md:flex-row p-4 gap-4">
-    
-    <!-- Video -->
-    <section class="flex-1 bg-black rounded-lg overflow-hidden flex flex-col">
-      
-      <!-- Controles de video (solo creador) -->
-      <div id="video-controls" class="p-2 bg-slate-800 flex flex-col gap-2">
-        <div class="flex gap-2">
-          <input id="video-url" type="text" placeholder="Paste YouTube URL"
-            class="flex-1 p-2 rounded bg-slate-700 text-white"/>
-          <button id="load-video" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded">
-            <i class="fas fa-play"></i> Load
-          </button>
-        </div>
+
+    <!-- Video Player -->
+    <section class="flex-1 bg-slate-800 rounded-xl overflow-hidden flex flex-col shadow-md">
+      <!-- Creator Controls -->
+      <div id="video-controls" class="p-3 border-b border-slate-700 flex gap-2">
+        <input id="video-url" type="text" placeholder="Paste YouTube URL"
+          class="flex-1 p-2 rounded bg-slate-700 text-white text-sm"/>
+        <button id="load-video" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded text-sm">
+          <i class="fas fa-play"></i> Load
+        </button>
       </div>
 
-      <!-- Botón de alineación (solo viewers) -->
-      <div id="align-controls" class="p-2 bg-slate-800 hidden">
-        <button id="align-video" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded">
+      <!-- Viewer Align Button -->
+      <div id="align-controls" class="p-3 border-b border-slate-700 hidden">
+        <button id="align-video" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded text-sm w-full">
           🔄 Align with Creator
         </button>
       </div>
 
-      <!-- Contenedor del video -->
-      <div id="video-container" class="relative w-full bg-slate-950 aspect-video">
+      <!-- Video Container -->
+      <div id="video-container" class="relative w-full bg-black aspect-video">
         <div id="player"></div>
       </div>
     </section>
 
-    <!-- Chat -->
-    <aside class="w-full md:w-1/3 flex flex-col bg-slate-800 rounded-lg max-h-[calc(100vh-120px)]">
-      <p>XD | Xtremo Developer</p>
-      <!-- Encabezado -->
-      <div class="p-2 border-b border-slate-700 flex justify-between items-center">
-        <span class="font-bold">💬 Chat</span>
-        <span id="user-count" class="text-gray-400 text-sm">0 online</span>
+    <!-- Chat Sidebar -->
+    <aside class="w-full md:w-1/3 flex flex-col bg-slate-800 rounded-xl shadow-md max-h-[calc(100vh-120px)]">
+      <!-- Chat Header -->
+      <div class="p-3 border-b border-slate-700 flex justify-between items-center">
+        <span class="font-bold text-cyan-300">💬 Chat</span>
+        <span id="user-count" class="text-gray-400 text-xs">0 online</span>
       </div>
-
-      <!-- Nombre editable -->
-      <div class="p-2 border-b border-slate-700 flex items-center gap-2 text-sm">
-        <span class="text-gray-400">Your name:</span>
-        <span id="user-name" class="cursor-pointer underline text-cyan-300"></span>
+      <!-- User name -->
+      <div class="p-2 border-b border-slate-700 text-sm">
+        <span class="text-gray-400">Your name: </span>
+        <span id="user-name" class="cursor-pointer underline text-emerald-400"></span>
       </div>
-
-      <!-- Mensajes -->
-      <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm"></div>
-
-      <!-- Input -->
+      <!-- Chat Messages -->
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm bg-slate-900"></div>
+      <!-- Chat Input -->
       <div class="p-2 border-t border-slate-700 flex gap-2">
         <input id="chat-input" type="text" placeholder="Type a message..."
           class="flex-1 p-2 rounded bg-slate-700 text-white text-sm"/>
-        <button id="send-chat" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded">
+        <button id="send-chat" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-sm">
           <i class="fas fa-paper-plane"></i>
         </button>
       </div>
@@ -85,7 +93,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getDatabase, ref, set, push, onValue, runTransaction, update, get } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // --- Firebase config ---
+    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyDEVWAQ4eIoi2NvbYj7XeFrsgCaiCZj0uc",
       authDomain: "ecosalas-25261.firebaseapp.com",
@@ -99,7 +107,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // --- Room & Role ---
+    // Room and Role
     const params = new URLSearchParams(window.location.search);
     const roomId = params.get("id");
     const isCreator = params.get("creator") === "true"; 
@@ -115,7 +123,7 @@
       document.getElementById("align-controls").style.display = "block";
     }
 
-    // --- Nombre del usuario ---
+    // Username editable
     let userName = isCreator ? "👑 Creator" : "🙋 Viewer";
     const userNameSpan = document.getElementById("user-name");
     userNameSpan.textContent = userName;
@@ -129,7 +137,7 @@
       }
     });
 
-    // --- User counter ---
+    // User counter
     const userCountRef = ref(db, "rooms/" + roomId + "/users");
     runTransaction(userCountRef, (current) => (current || 0) + 1);
 
@@ -142,7 +150,7 @@
       runTransaction(userCountRef, (current) => (current || 1) - 1);
     });
 
-    // --- Chat ---
+    // Chat
     const chatRef = ref(db, "rooms/" + roomId + "/chat");
     const chatBox = document.getElementById("chat-messages");
 
@@ -153,7 +161,7 @@
         const div = document.createElement("div");
         div.className = "bg-slate-700 p-2 rounded break-words";
         div.innerHTML = `
-          <span class="text-cyan-300 font-bold">${data.user}</span> 
+          <span class="text-emerald-400 font-bold">${data.user}</span> 
           <span class="text-gray-400 text-xs">[${new Date(data.time).toLocaleTimeString()}]</span><br>
           ${data.text}
         `;
@@ -178,7 +186,7 @@
       input.value = "";
     }
 
-    // --- Video Sync ---
+    // Video Sync
     let player;
     let syncInterval;
     const videoRef = ref(db, "rooms/" + roomId + "/video");
@@ -200,20 +208,12 @@
 
       if (event.data === YT.PlayerState.PLAYING) {
         update(videoRef, { time: player.getCurrentTime(), action: "play" });
-
         syncInterval = setInterval(() => {
-          update(videoRef, {
-            time: player.getCurrentTime(),
-            action: "play"
-          });
+          update(videoRef, { time: player.getCurrentTime(), action: "play" });
         }, 2000);
-
       } else if (event.data === YT.PlayerState.PAUSED) {
         clearInterval(syncInterval);
-        update(videoRef, {
-          time: player.getCurrentTime(),
-          action: "pause"
-        });
+        update(videoRef, { time: player.getCurrentTime(), action: "pause" });
       }
     }
 
@@ -227,7 +227,7 @@
       });
     }
 
-    // Viewers: siempre se alinean al instante al entrar
+    // Viewers auto align
     onValue(videoRef, (snap) => {
       const data = snap.val();
       if (!data || isCreator || !player) return;
@@ -243,7 +243,7 @@
       else player.pauseVideo();
     });
 
-    // --- Botón Align manual ---
+    // Manual Align
     if (!isCreator) {
       document.getElementById("align-video").addEventListener("click", async () => {
         const snap = await get(videoRef);
@@ -258,7 +258,7 @@
       });
     }
 
-    // --- Extract VideoId robusto ---
+    // Extract VideoId
     function extractVideoId(url) {
       try {
         const u = new URL(url);
@@ -276,10 +276,11 @@
       return "";
     }
 
-    // --- Leave room ---
+    // Leave room
     document.getElementById("leave-room").addEventListener("click", () => {
       window.location.href = "index.html";
     });
   </script>
 </body>
 </html>
+<p>XD | Xtremo Developer</p>
