@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <style>
     .brand-gradient { background: linear-gradient(90deg, #06b6d4 0%, #7c3aed 50%, #10b981 100%); }
-    .logo-shape { width:48px; height:48px; display:inline-grid; place-items:center; border-radius:12px; }
     .logo-text { font-weight:700; letter-spacing:-0.02em; }
     .soft-glow { box-shadow: 0 6px 24px rgba(16,185,129,0.12); }
     .modal { background: rgba(0,0,0,0.7); }
@@ -18,9 +17,6 @@
 
   <!-- Header -->
   <header class="flex items-center gap-4 p-4 bg-slate-800 shadow-lg">
-    <div class="logo-shape brand-gradient soft-glow">
-      <span class="text-white font-bold text-xl">SP</span>
-    </div>
     <div>
       <h1 class="text-2xl text-cyan-300 logo-text">SyncPlay</h1>
       <p class="text-xs text-slate-400">Watch together • cyan · purple · emerald</p>
@@ -62,14 +58,6 @@
       <!-- Chat Header -->
       <div class="p-3 border-b border-slate-700 flex justify-between items-center">
         <span class="font-bold text-cyan-300">💬 Chat</span>
-        <div class="flex items-center gap-2">
-          <button id="toggle-mic" class="bg-emerald-600 hover:bg-emerald-700 px-3 py-1 rounded text-sm">
-            <i class="fas fa-microphone"></i>
-          </button>
-          <button id="mute-all" class="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded text-sm hidden">
-            <i class="fas fa-volume-mute"></i>
-          </button>
-        </div>
         <span id="user-count" class="text-gray-400 text-xs cursor-pointer">0 online</span>
       </div>
 
@@ -189,36 +177,9 @@
         const data = child.val();
         const div = document.createElement("div");
         div.className = "flex justify-between items-center bg-slate-700 p-2 rounded";
-        div.innerHTML = `
-          <span>${data.name}</span>
-          ${isCreator ? `
-          <button data-id="${child.key}" class="mute-btn bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded text-xs">
-            ${data.muted ? "Unmute" : "Mute"}
-          </button>` : ""}
-        `;
+        div.innerHTML = `<span>${data.name}</span>`;
         userListDiv.appendChild(div);
       });
-
-      if (isCreator) {
-        document.querySelectorAll(".mute-btn").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            const uid = btn.dataset.id;
-            const newState = btn.textContent === "Mute";
-            update(ref(db, "rooms/" + roomId + "/userList/" + uid), { muted: newState });
-          });
-        });
-      }
-    });
-
-    // Estado mute personal
-    onValue(userListRef, (snap) => {
-      const data = snap.val();
-      if (data && data.muted) {
-        micEnabled = false;
-        const icon = toggleMicBtn.querySelector("i");
-        icon.classList.remove("fa-microphone");
-        icon.classList.add("fa-microphone-slash");
-      }
     });
 
     // Chat
@@ -343,41 +304,6 @@
       return "";
     }
 
-    // --- Audio Controls ---
-    let micEnabled = true;
-    const toggleMicBtn = document.getElementById("toggle-mic");
-    const muteAllBtn = document.getElementById("mute-all");
-
-    if (isCreator) {
-      muteAllBtn.classList.remove("hidden");
-    }
-
-    toggleMicBtn.addEventListener("click", () => {
-      micEnabled = !micEnabled;
-      const icon = toggleMicBtn.querySelector("i");
-      if (micEnabled) {
-        icon.classList.remove("fa-microphone-slash");
-        icon.classList.add("fa-microphone");
-      } else {
-        icon.classList.remove("fa-microphone");
-        icon.classList.add("fa-microphone-slash");
-      }
-    });
-
-    muteAllBtn.addEventListener("click", () => {
-      set(ref(db, "rooms/" + roomId + "/muteAll"), true);
-    });
-
-    const muteAllRef = ref(db, "rooms/" + roomId + "/muteAll");
-    onValue(muteAllRef, (snap) => {
-      if (snap.val() === true) {
-        micEnabled = false;
-        const icon = toggleMicBtn.querySelector("i");
-        icon.classList.remove("fa-microphone");
-        icon.classList.add("fa-microphone-slash");
-      }
-    });
-
     // Leave
     document.getElementById("leave-room").addEventListener("click", () => {
       window.location.href = "index.html";
@@ -385,4 +311,3 @@
   </script>
 </body>
 </html>
-
