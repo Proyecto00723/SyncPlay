@@ -3,101 +3,73 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SyncPlay Room</title>
+  <title>SyncPlay - Home</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <style>
-    .brand-gradient { background: linear-gradient(90deg, #06b6d4 0%, #7c3aed 50%, #10b981 100%); }
-    .logo-text { font-weight:700; letter-spacing:-0.02em; }
-    .soft-glow { box-shadow: 0 6px 24px rgba(16,185,129,0.12); }
-    .modal { background: rgba(0,0,0,0.7); }
+    .brand-gradient {
+      background: linear-gradient(90deg, #06b6d4 0%, #7c3aed 50%, #10b981 100%);
+    }
+    .glow {
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
+    }
+    .fade-in {
+      animation: fadeIn 0.8s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
-<body class="min-h-screen bg-slate-900 text-white flex flex-col">
 
-  <!-- Header -->
-  <header class="flex items-center gap-4 p-4 bg-slate-800 shadow-lg">
-    <div>
-      <h1 class="text-2xl text-cyan-300 logo-text">SyncPlay</h1>
-      <p class="text-xs text-slate-400">Watch together • cyan · purple · emerald</p>
+<body class="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6">
+
+  <!-- Logo + Título -->
+  <div class="flex flex-col items-center gap-3 fade-in">
+    <div class="w-16 h-16 brand-gradient rounded-2xl flex items-center justify-center glow">
+      <span class="font-bold text-xl">SP</span>
     </div>
-    <div class="ml-auto flex items-center gap-4">
-      <span id="room-id-display" class="text-gray-300 text-sm"></span>
-      <button id="leave-room" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm">
-        <i class="fas fa-sign-out-alt"></i> Leave
-      </button>
-    </div>
-  </header>
-
-  <!-- Main -->
-  <main class="flex flex-1 flex-col md:flex-row p-4 gap-4">
-
-    <!-- Video Player -->
-    <section class="flex-1 bg-slate-800 rounded-xl overflow-hidden flex flex-col shadow-md">
-      <div id="video-controls" class="p-3 border-b border-slate-700 flex gap-2">
-        <input id="video-url" type="text" placeholder="Paste YouTube URL"
-          class="flex-1 p-2 rounded bg-slate-700 text-white text-sm"/>
-        <button id="load-video" class="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded text-sm">
-          <i class="fas fa-play"></i> Load
-        </button>
-      </div>
-
-      <div id="align-controls" class="p-3 border-b border-slate-700 hidden">
-        <button id="align-video" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded text-sm w-full">
-          🔄 Align with Creator
-        </button>
-      </div>
-
-      <div id="video-container" class="relative w-full bg-black aspect-video">
-        <div id="player"></div>
-      </div>
-    </section>
-
-    <!-- Chat Sidebar -->
-    <aside class="w-full md:w-1/3 flex flex-col bg-slate-800 rounded-xl shadow-md max-h-[calc(100vh-120px)]">
-      <!-- Chat Header -->
-      <div class="p-3 border-b border-slate-700 flex justify-between items-center">
-        <span class="font-bold text-cyan-300">💬 Chat</span>
-        <span id="user-count" class="text-gray-400 text-xs cursor-pointer">0 online</span>
-      </div>
-
-      <!-- Nombre usuario -->
-      <div class="p-2 border-b border-slate-700 text-sm">
-        <span class="text-gray-400">Your name: </span>
-        <span id="user-name" class="cursor-pointer underline text-emerald-400"></span>
-      </div>
-
-      <!-- Mensajes -->
-      <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm bg-slate-900"></div>
-
-      <!-- Input -->
-      <div class="p-2 border-t border-slate-700 flex gap-2">
-        <input id="chat-input" type="text" placeholder="Type a message..."
-          class="flex-1 p-2 rounded bg-slate-700 text-white text-sm"/>
-        <button id="send-chat" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-sm">
-          <i class="fas fa-paper-plane"></i>
-        </button>
-      </div>
-    </aside>
-  </main>
-
-  <!-- Modal Lista Usuarios -->
-  <div id="user-modal" class="fixed inset-0 hidden modal flex items-center justify-center z-50">
-    <div class="bg-slate-800 rounded-xl shadow-lg p-4 w-80">
-      <h2 class="text-lg font-bold text-cyan-300 mb-3">👥 Usuarios en sala</h2>
-      <div id="user-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
-      <button id="close-modal" class="mt-3 w-full bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm">
-        Cerrar
-      </button>
-    </div>
+    <h1 class="text-4xl font-bold text-cyan-400">🎬 SyncPlay</h1>
+    <p class="text-slate-400 text-sm">Watch together • cyan · purple · emerald</p>
   </div>
 
+  <!-- Botones principales -->
+  <div class="flex flex-col md:flex-row gap-4 justify-center mt-10 fade-in">
+    <!-- Botón Crear Sala -->
+    <button id="create-room-btn"
+      class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition-all hover:scale-105">
+      <i class="fas fa-plus-circle mr-2"></i> Create Room
+    </button>
+
+    <!-- Botón Unirse -->
+    <button id="join-room-btn"
+      class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition-all hover:scale-105">
+      <i class="fas fa-sign-in-alt mr-2"></i> Join Room
+    </button>
+  </div>
+
+  <!-- Caja para ingresar Room ID -->
+  <div id="join-room-box" class="hidden mt-6 flex gap-2 w-full max-w-md fade-in">
+    <input id="room-id-input" type="text" placeholder="Enter Room ID..."
+      class="flex-1 p-3 rounded bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"/>
+    <button id="go-room" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded text-sm font-bold">
+      Go
+    </button>
+  </div>
+
+  <!-- Pie de marca -->
+  <footer class="absolute bottom-4 text-slate-500 text-xs text-center fade-in">
+    <p>XD | Xtremo Developer® · v2.0</p>
+    <p class="text-slate-600">SyncPlay App Project</p>
+  </footer>
+
   <!-- Firebase + Logic -->
-  <script src="https://www.youtube.com/iframe_api"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, set, push, onValue, runTransaction, update, get, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
+    // --- Firebase config ---
     const firebaseConfig = {
       apiKey: "AIzaSyDEVWAQ4eIoi2NvbYj7XeFrsgCaiCZj0uc",
       authDomain: "ecosalas-25261.firebaseapp.com",
@@ -111,202 +83,29 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    const params = new URLSearchParams(window.location.search);
-    const roomId = params.get("id");
-    const isCreator = params.get("creator") === "true"; 
-
-    if (!roomId) {
-      alert("❌ No room ID provided");
-      window.location.href = "index.html";
-    }
-    document.getElementById("room-id-display").innerText = "Room: " + roomId;
-
-    if (!isCreator) {
-      document.getElementById("video-controls").style.display = "none";
-      document.getElementById("align-controls").style.display = "block";
-    }
-
-    // Nombre
-    let userName = isCreator ? "👑 Creator" : "🙋 Viewer";
-    const userNameSpan = document.getElementById("user-name");
-    userNameSpan.textContent = userName;
-
-    userNameSpan.addEventListener("click", () => {
-      const newName = prompt("Escribe tu nuevo nombre (máx. 13 caracteres):", userName.replace("👑 ", "").replace("🙋 ", ""));
-      if (newName !== null) {
-        const trimmed = newName.trim().slice(0, 13);
-        userName = (isCreator ? "👑 " : "🙋 ") + (trimmed || (isCreator ? "Creator" : "Viewer"));
-        userNameSpan.textContent = userName;
-        update(ref(db, "rooms/" + roomId + "/userList/" + userId), { name: userName });
-      }
-    });
-
-    // Identificador único
-    const userId = Math.random().toString(36).substring(2, 10);
-
-    // User counter + lista
-    const userCountRef = ref(db, "rooms/" + roomId + "/users");
-    runTransaction(userCountRef, (current) => (current || 0) + 1);
-
-    const userListRef = ref(db, "rooms/" + roomId + "/userList/" + userId);
-    set(userListRef, { name: userName, muted: false });
-
-    onValue(userCountRef, (snap) => {
-      const count = snap.val() || 0;
-      document.getElementById("user-count").innerText = count + " online";
-    });
-
-    window.addEventListener("beforeunload", () => {
-      runTransaction(userCountRef, (current) => (current || 1) - 1);
-      remove(userListRef);
-    });
-
-    // Modal lista usuarios
-    const userModal = document.getElementById("user-modal");
-    const userListDiv = document.getElementById("user-list");
-    document.getElementById("user-count").addEventListener("click", () => {
-      userModal.classList.remove("hidden");
-    });
-    document.getElementById("close-modal").addEventListener("click", () => {
-      userModal.classList.add("hidden");
-    });
-
-    onValue(ref(db, "rooms/" + roomId + "/userList"), (snap) => {
-      userListDiv.innerHTML = "";
-      snap.forEach((child) => {
-        const data = child.val();
-        const div = document.createElement("div");
-        div.className = "flex justify-between items-center bg-slate-700 p-2 rounded";
-        div.innerHTML = `<span>${data.name}</span>`;
-        userListDiv.appendChild(div);
+    // Crear sala
+    document.getElementById("create-room-btn").addEventListener("click", () => {
+      const roomId = "room_" + Date.now();
+      set(ref(db, "rooms/" + roomId), {
+        createdAt: new Date().toISOString(),
+        users: 0
+      }).then(() => {
+        // Redirigir con creator=true
+        window.location.href = `room.html?id=${roomId}&creator=true`;
       });
     });
 
-    // Chat
-    const chatRef = ref(db, "rooms/" + roomId + "/chat");
-    const chatBox = document.getElementById("chat-messages");
-
-    onValue(chatRef, (snap) => {
-      chatBox.innerHTML = "";
-      snap.forEach((msg) => {
-        const data = msg.val();
-        const div = document.createElement("div");
-        div.className = "bg-slate-700 p-2 rounded break-words";
-        div.innerHTML = `
-          <span class="text-emerald-400 font-bold">${data.user}</span> 
-          <span class="text-gray-400 text-xs">[${new Date(data.time).toLocaleTimeString()}]</span><br>
-          ${data.text}
-        `;
-        chatBox.appendChild(div);
-      });
-      chatBox.scrollTop = chatBox.scrollHeight;
+    // Mostrar input al darle "Join Room"
+    document.getElementById("join-room-btn").addEventListener("click", () => {
+      document.getElementById("join-room-box").classList.remove("hidden");
+      document.getElementById("room-id-input").focus();
     });
 
-    document.getElementById("send-chat").addEventListener("click", sendMessage);
-    document.getElementById("chat-input").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
-
-    function sendMessage() {
-      const input = document.getElementById("chat-input");
-      if (!input.value.trim()) return;
-      push(chatRef, {
-        user: userName,
-        text: input.value.trim(),
-        time: Date.now()
-      });
-      input.value = "";
-    }
-
-    // Video Sync
-    let player;
-    let syncInterval;
-    const videoRef = ref(db, "rooms/" + roomId + "/video");
-
-    window.onYouTubeIframeAPIReady = () => {
-      player = new YT.Player("player", {
-        height: "100%",
-        width: "100%",
-        videoId: "",
-        events: {
-          onReady: () => console.log("✅ Player ready"),
-          onStateChange: handlePlayerState
-        }
-      });
-    };
-
-    function handlePlayerState(event) {
-      if (!isCreator) return;
-      if (event.data === YT.PlayerState.PLAYING) {
-        update(videoRef, { time: player.getCurrentTime(), action: "play" });
-        syncInterval = setInterval(() => {
-          update(videoRef, { time: player.getCurrentTime(), action: "play" });
-        }, 2000);
-      } else if (event.data === YT.PlayerState.PAUSED) {
-        clearInterval(syncInterval);
-        update(videoRef, { time: player.getCurrentTime(), action: "pause" });
-      }
-    }
-
-    if (isCreator) {
-      document.getElementById("load-video").addEventListener("click", () => {
-        const url = document.getElementById("video-url").value.trim();
-        if (!url) return;
-        const vid = extractVideoId(url);
-        set(videoRef, { url: url, videoId: vid, action: "pause", time: 0 });
-        player.loadVideoById(vid);
-      });
-    }
-
-    onValue(videoRef, (snap) => {
-      const data = snap.val();
-      if (!data || isCreator || !player) return;
-
-      if (data.videoId && player.getVideoData().video_id !== data.videoId) {
-        player.loadVideoById(data.videoId, data.time || 0);
-      } else {
-        const diff = Math.abs(player.getCurrentTime() - data.time);
-        if (diff > 1) player.seekTo(data.time, true);
-      }
-
-      if (data.action === "play") player.playVideo();
-      else player.pauseVideo();
-    });
-
-    if (!isCreator) {
-      document.getElementById("align-video").addEventListener("click", async () => {
-        const snap = await get(videoRef);
-        if (snap.exists()) {
-          const data = snap.val();
-          if (data && player) {
-            player.seekTo(data.time, true);
-            if (data.action === "play") player.playVideo();
-            else player.pauseVideo();
-          }
-        }
-      });
-    }
-
-    function extractVideoId(url) {
-      try {
-        const u = new URL(url);
-        if (u.hostname.includes("youtu.be")) {
-          return u.pathname.replace("/", "");
-        }
-        if (u.searchParams.has("v")) {
-          return u.searchParams.get("v");
-        }
-      } catch (e) {
-        const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
-        const match = url.match(regExp);
-        return match ? match[1] : "";
-      }
-      return "";
-    }
-
-    // Leave
-    document.getElementById("leave-room").addEventListener("click", () => {
-      window.location.href = "index.html";
+    // Entrar a sala existente
+    document.getElementById("go-room").addEventListener("click", () => {
+      const roomId = document.getElementById("room-id-input").value.trim();
+      if (!roomId) return alert("Enter a room ID");
+      window.location.href = `room.html?id=${roomId}&creator=false`;
     });
   </script>
 </body>
