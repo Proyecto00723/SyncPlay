@@ -33,7 +33,7 @@
   <main class="flex flex-1 flex-col md:flex-row p-4 gap-4">
 
     <!-- Video Player -->
-    <section class="flex-1 bg-slate-800 rounded-xl overflow-hidden flex flex-col shadow-md">
+    <section class="flex-1 bg-slate-800 rounded-xl overflow-hidden flex flex-col shadow-md relative">
       <div id="video-controls" class="p-3 border-b border-slate-700 flex gap-2">
         <input id="video-url" type="text" placeholder="Paste YouTube URL"
           class="flex-1 p-2 rounded bg-slate-700 text-white text-sm"/>
@@ -54,11 +54,14 @@
     </section>
 
     <!-- Chat Sidebar -->
-    <aside class="w-full md:w-1/3 flex flex-col bg-slate-800 rounded-xl shadow-md max-h-[calc(100vh-120px)]">
+    <aside id="chat-sidebar" class="w-full md:w-1/3 flex flex-col bg-slate-800 rounded-xl shadow-md max-h-[calc(100vh-120px)]">
       <!-- Chat Header -->
-      <div class="p-3 border-b border-slate-700 flex justify-between items-center">
+      <div id="chat-header" class="p-3 border-b border-slate-700 flex justify-between items-center cursor-move select-none">
         <span class="font-bold text-cyan-300">💬 Chat</span>
-        <span id="user-count" class="text-gray-400 text-xs cursor-pointer">0 online</span>
+        <div class="flex gap-2 items-center">
+          <button id="pop-chat" class="text-gray-400 hover:text-cyan-400 text-xs">📤 Pop</button>
+          <span id="user-count" class="text-gray-400 text-xs cursor-pointer">0 online</span>
+        </div>
       </div>
 
       <!-- Nombre usuario -->
@@ -78,6 +81,9 @@
           <i class="fas fa-paper-plane"></i>
         </button>
       </div>
+
+      <!-- Esquina de redimensión -->
+      <div id="resize-handle" class="absolute w-4 h-4 bg-slate-600 rounded-tr-lg cursor-se-resize hidden"></div>
     </aside>
   </main>
 
@@ -99,15 +105,15 @@
     import { getDatabase, ref, set, push, onValue, runTransaction, update, get, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
     const firebaseConfig = {
-  apiKey: "AIzaSyDwird5A7fTnSD3JA7HgHNJhVOi3yiPVwU",
-  authDomain: "stylish-steps.firebaseapp.com",
-  databaseURL: "https://stylish-steps-default-rtdb.firebaseio.com",
-  projectId: "stylish-steps",
-  storageBucket: "stylish-steps.firebasestorage.app",
-  messagingSenderId: "580730135694",
-  appId: "1:580730135694:web:3d77bfef3af246f9c755df",
-  measurementId: "G-21F9WH2PZT"
-};
+      apiKey: "AIzaSyDwird5A7fTnSD3JA7HgHNJhVOi3yiPVwU",
+      authDomain: "stylish-steps.firebaseapp.com",
+      databaseURL: "https://stylish-steps-default-rtdb.firebaseio.com",
+      projectId: "stylish-steps",
+      storageBucket: "stylish-steps.firebasestorage.app",
+      messagingSenderId: "580730135694",
+      appId: "1:580730135694:web:3d77bfef3af246f9c755df",
+      measurementId: "G-21F9WH2PZT"
+    };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
@@ -127,7 +133,8 @@
       document.getElementById("align-controls").style.display = "block";
     }
 
-    // Nombre
+    // === NOMBRE USUARIO ===
+    const userId = Math.random().toString(36).substring(2, 10);
     let userName = isCreator ? "👑 Creator" : "🙋 Viewer";
     const userNameSpan = document.getElementById("user-name");
     userNameSpan.textContent = userName;
@@ -142,19 +149,15 @@
       }
     });
 
-    // Identificador único
-    const userId = Math.random().toString(36).substring(2, 10);
-
-    // User counter + lista
+    // === USUARIOS ===
     const userCountRef = ref(db, "rooms/" + roomId + "/users");
     runTransaction(userCountRef, (current) => (current || 0) + 1);
 
     const userListRef = ref(db, "rooms/" + roomId + "/userList/" + userId);
-    set(userListRef, { name: userName, muted: false });
+    set(userListRef, { name: userName });
 
     onValue(userCountRef, (snap) => {
-      const count = snap.val() || 0;
-      document.getElementById("user-count").innerText = count + " online";
+      document.getElementById("user-count").innerText = (snap.val() || 0) + " online";
     });
 
     window.addEventListener("beforeunload", () => {
@@ -162,15 +165,11 @@
       remove(userListRef);
     });
 
-    // Modal lista usuarios
+    // === LISTA DE USUARIOS ===
     const userModal = document.getElementById("user-modal");
     const userListDiv = document.getElementById("user-list");
-    document.getElementById("user-count").addEventListener("click", () => {
-      userModal.classList.remove("hidden");
-    });
-    document.getElementById("close-modal").addEventListener("click", () => {
-      userModal.classList.add("hidden");
-    });
+    document.getElementById("user-count").addEventListener("click", () => userModal.classList.remove("hidden"));
+    document.getElementById("close-modal").addEventListener("click", () => userModal.classList.add("hidden"));
 
     onValue(ref(db, "rooms/" + roomId + "/userList"), (snap) => {
       userListDiv.innerHTML = "";
@@ -183,7 +182,7 @@
       });
     });
 
-    // Chat
+    // === CHAT ===
     const chatRef = ref(db, "rooms/" + roomId + "/chat");
     const chatBox = document.getElementById("chat-messages");
 
@@ -193,33 +192,24 @@
         const data = msg.val();
         const div = document.createElement("div");
         div.className = "bg-slate-700 p-2 rounded break-words";
-        div.innerHTML = `
-          <span class="text-emerald-400 font-bold">${data.user}</span> 
-          <span class="text-gray-400 text-xs">[${new Date(data.time).toLocaleTimeString()}]</span><br>
-          ${data.text}
-        `;
+        div.innerHTML = `<span class="text-emerald-400 font-bold">${data.user}</span> 
+          <span class="text-gray-400 text-xs">[${new Date(data.time).toLocaleTimeString()}]</span><br>${data.text}`;
         chatBox.appendChild(div);
       });
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
     document.getElementById("send-chat").addEventListener("click", sendMessage);
-    document.getElementById("chat-input").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
+    document.getElementById("chat-input").addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
 
     function sendMessage() {
       const input = document.getElementById("chat-input");
       if (!input.value.trim()) return;
-      push(chatRef, {
-        user: userName,
-        text: input.value.trim(),
-        time: Date.now()
-      });
+      push(chatRef, { user: userName, text: input.value.trim(), time: Date.now() });
       input.value = "";
     }
 
-    // Video Sync
+    // === VIDEO SYNC ===
     let player;
     let syncInterval;
     const videoRef = ref(db, "rooms/" + roomId + "/video");
@@ -229,10 +219,7 @@
         height: "100%",
         width: "100%",
         videoId: "",
-        events: {
-          onReady: () => console.log("✅ Player ready"),
-          onStateChange: handlePlayerState
-        }
+        events: { onReady: () => console.log("✅ Player ready"), onStateChange: handlePlayerState }
       });
     };
 
@@ -240,9 +227,7 @@
       if (!isCreator) return;
       if (event.data === YT.PlayerState.PLAYING) {
         update(videoRef, { time: player.getCurrentTime(), action: "play" });
-        syncInterval = setInterval(() => {
-          update(videoRef, { time: player.getCurrentTime(), action: "play" });
-        }, 2000);
+        syncInterval = setInterval(() => update(videoRef, { time: player.getCurrentTime(), action: "play" }), 2000);
       } else if (event.data === YT.PlayerState.PAUSED) {
         clearInterval(syncInterval);
         update(videoRef, { time: player.getCurrentTime(), action: "pause" });
@@ -254,7 +239,7 @@
         const url = document.getElementById("video-url").value.trim();
         if (!url) return;
         const vid = extractVideoId(url);
-        set(videoRef, { url: url, videoId: vid, action: "pause", time: 0 });
+        set(videoRef, { url, videoId: vid, action: "pause", time: 0 });
         player.loadVideoById(vid);
       });
     }
@@ -262,14 +247,12 @@
     onValue(videoRef, (snap) => {
       const data = snap.val();
       if (!data || isCreator || !player) return;
-
       if (data.videoId && player.getVideoData().video_id !== data.videoId) {
         player.loadVideoById(data.videoId, data.time || 0);
       } else {
         const diff = Math.abs(player.getCurrentTime() - data.time);
         if (diff > 1) player.seekTo(data.time, true);
       }
-
       if (data.action === "play") player.playVideo();
       else player.pauseVideo();
     });
@@ -291,12 +274,8 @@
     function extractVideoId(url) {
       try {
         const u = new URL(url);
-        if (u.hostname.includes("youtu.be")) {
-          return u.pathname.replace("/", "");
-        }
-        if (u.searchParams.has("v")) {
-          return u.searchParams.get("v");
-        }
+        if (u.hostname.includes("youtu.be")) return u.pathname.replace("/", "");
+        if (u.searchParams.has("v")) return u.searchParams.get("v");
       } catch (e) {
         const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
         const match = url.match(regExp);
@@ -305,10 +284,85 @@
       return "";
     }
 
-    // Leave
-    document.getElementById("leave-room").addEventListener("click", () => {
-      window.location.href = "index.html";
+    // === CHAT FLOTANTE ===
+    const chatSidebar = document.getElementById("chat-sidebar");
+    const popChatBtn = document.getElementById("pop-chat");
+    const chatHeader = document.getElementById("chat-header");
+    const resizeHandle = document.getElementById("resize-handle");
+
+    let isFloating = false, isDragging = false, offsetX, offsetY, isResizing = false, startX, startY, startWidth, startHeight;
+
+    popChatBtn.addEventListener("click", () => {
+      if (!isFloating) {
+        chatSidebar.style.position = "fixed";
+        chatSidebar.style.width = "340px";
+        chatSidebar.style.height = "440px";
+        chatSidebar.style.right = "20px";
+        chatSidebar.style.bottom = "20px";
+        chatSidebar.style.zIndex = "9999";
+        chatSidebar.style.boxShadow = "0 0 15px rgba(0,255,255,0.3)";
+        chatSidebar.style.border = "1px solid rgba(0,255,255,0.2)";
+        resizeHandle.classList.remove("hidden");
+        popChatBtn.textContent = "📥 Dock";
+        isFloating = true;
+        chatHeader.addEventListener("mousedown", dragStart);
+        document.addEventListener("mouseup", dragEnd);
+      } else {
+        chatSidebar.removeAttribute("style");
+        popChatBtn.textContent = "📤 Pop";
+        isFloating = false;
+        resizeHandle.classList.add("hidden");
+        chatHeader.removeEventListener("mousedown", dragStart);
+        document.removeEventListener("mouseup", dragEnd);
+      }
     });
+
+    function dragStart(e) {
+      if (!isFloating) return;
+      isDragging = true;
+      offsetX = e.clientX - chatSidebar.getBoundingClientRect().left;
+      offsetY = e.clientY - chatSidebar.getBoundingClientRect().top;
+      document.addEventListener("mousemove", dragMove);
+    }
+
+    function dragMove(e) {
+      if (!isDragging || !isFloating) return;
+      chatSidebar.style.left = e.clientX - offsetX + "px";
+      chatSidebar.style.top = e.clientY - offsetY + "px";
+    }
+
+    function dragEnd() {
+      isDragging = false;
+      document.removeEventListener("mousemove", dragMove);
+    }
+
+    resizeHandle.addEventListener("mousedown", (e) => {
+      if (!isFloating) return;
+      e.preventDefault();
+      isResizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = chatSidebar.getBoundingClientRect();
+      startWidth = rect.width;
+      startHeight = rect.height;
+      document.addEventListener("mousemove", resizeMove);
+      document.addEventListener("mouseup", stopResize);
+    });
+
+    function resizeMove(e) {
+      if (!isResizing) return;
+      chatSidebar.style.width = Math.max(280, startWidth + (e.clientX - startX)) + "px";
+      chatSidebar.style.height = Math.max(350, startHeight + (e.clientY - startY)) + "px";
+    }
+
+    function stopResize() {
+      isResizing = false;
+      document.removeEventListener("mousemove", resizeMove);
+      document.removeEventListener("mouseup", stopResize);
+    }
+
+    // === SALIR ===
+    document.getElementById("leave-room").addEventListener("click", () => window.location.href = "index.html");
   </script>
 </body>
 </html>
