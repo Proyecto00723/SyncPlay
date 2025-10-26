@@ -100,269 +100,292 @@
 
   <!-- Firebase + Logic -->
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, set, push, onValue, runTransaction, update, get, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import { getDatabase, ref, set, push, onValue, runTransaction, update, get, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDwird5A7fTnSD3JA7HgHNJhVOi3yiPVwU",
-      authDomain: "stylish-steps.firebaseapp.com",
-      databaseURL: "https://stylish-steps-default-rtdb.firebaseio.com",
-      projectId: "stylish-steps",
-      storageBucket: "stylish-steps.firebasestorage.app",
-      messagingSenderId: "580730135694",
-      appId: "1:580730135694:web:3d77bfef3af246f9c755df",
-      measurementId: "G-21F9WH2PZT"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyDwird5A7fTnSD3JA7HgHNJhVOi3yiPVwU",
+    authDomain: "stylish-steps.firebaseapp.com",
+    databaseURL: "https://stylish-steps-default-rtdb.firebaseio.com",
+    projectId: "stylish-steps",
+    storageBucket: "stylish-steps.firebasestorage.app",
+    messagingSenderId: "580730135694",
+    appId: "1:580730135694:web:3d77bfef3af246f9c755df",
+    measurementId: "G-21F9WH2PZT"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-    const params = new URLSearchParams(window.location.search);
-    const roomId = params.get("id");
-    const isCreator = params.get("creator") === "true"; 
+  const params = new URLSearchParams(window.location.search);
+  const roomId = params.get("id");
+  const isCreator = params.get("creator") === "true"; 
 
-    if (!roomId) {
-      alert("❌ No room ID provided");
-      window.location.href = "index.html";
+  if (!roomId) {
+    alert("❌ No room ID provided");
+    window.location.href = "index.html";
+  }
+  document.getElementById("room-id-display").innerText = "Room: " + roomId;
+
+  if (!isCreator) {
+    document.getElementById("video-controls").style.display = "none";
+    document.getElementById("align-controls").style.display = "block";
+  }
+
+  // === NOMBRE USUARIO ===
+  const userId = Math.random().toString(36).substring(2, 10);
+  let userName = isCreator ? "👑 Creator" : "🙋 Viewer";
+  const userNameSpan = document.getElementById("user-name");
+  userNameSpan.textContent = userName;
+
+  userNameSpan.addEventListener("click", () => {
+    const newName = prompt("Escribe tu nuevo nombre (máx. 13 caracteres):", userName.replace("👑 ", "").replace("🙋 ", ""));
+    if (newName !== null) {
+      const trimmed = newName.trim().slice(0, 13);
+      userName = (isCreator ? "👑 " : "🙋 ") + (trimmed || (isCreator ? "Creator" : "Viewer"));
+      userNameSpan.textContent = userName;
+      update(ref(db, "rooms/" + roomId + "/userList/" + userId), { name: userName });
     }
-    document.getElementById("room-id-display").innerText = "Room: " + roomId;
+  });
 
-    if (!isCreator) {
-      document.getElementById("video-controls").style.display = "none";
-      document.getElementById("align-controls").style.display = "block";
+  // === USUARIOS ===
+  const userCountRef = ref(db, "rooms/" + roomId + "/users");
+  runTransaction(userCountRef, (current) => (current || 0) + 1);
+
+  const userListRef = ref(db, "rooms/" + roomId + "/userList/" + userId);
+  set(userListRef, { name: userName });
+
+  onValue(userCountRef, (snap) => {
+    document.getElementById("user-count").innerText = (snap.val() || 0) + " online";
+  });
+
+  window.addEventListener("beforeunload", () => {
+    runTransaction(userCountRef, (current) => (current || 1) - 1);
+    remove(userListRef);
+  });
+
+  // === LISTA DE USUARIOS ===
+  const userModal = document.getElementById("user-modal");
+  const userListDiv = document.getElementById("user-list");
+  document.getElementById("user-count").addEventListener("click", () => userModal.classList.remove("hidden"));
+  document.getElementById("close-modal").addEventListener("click", () => userModal.classList.add("hidden"));
+
+  onValue(ref(db, "rooms/" + roomId + "/userList"), (snap) => {
+    userListDiv.innerHTML = "";
+    snap.forEach((child) => {
+      const data = child.val();
+      const div = document.createElement("div");
+      div.className = "flex justify-between items-center bg-slate-700 p-2 rounded";
+      div.innerHTML = `<span>${data.name}</span>`;
+      userListDiv.appendChild(div);
+    });
+  });
+
+  // === CHAT ===
+  const chatRef = ref(db, "rooms/" + roomId + "/chat");
+  const chatBox = document.getElementById("chat-messages");
+
+  onValue(chatRef, (snap) => {
+    chatBox.innerHTML = "";
+    snap.forEach((msg) => {
+      const data = msg.val();
+      const div = document.createElement("div");
+      div.className = "bg-slate-700 p-2 rounded break-words";
+      div.innerHTML = `<span class="text-emerald-400 font-bold">${data.user}</span> 
+        <span class="text-gray-400 text-xs">[${new Date(data.time).toLocaleTimeString()}]</span><br>${data.text}`;
+      chatBox.appendChild(div);
+    });
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+
+  document.getElementById("send-chat").addEventListener("click", sendMessage);
+  document.getElementById("chat-input").addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
+
+  function sendMessage() {
+    const input = document.getElementById("chat-input");
+    if (!input.value.trim()) return;
+    push(chatRef, { user: userName, text: input.value.trim(), time: Date.now() });
+    input.value = "";
+  }
+
+  // === VIDEO SYNC ===
+  let player;
+  let syncInterval;
+  const videoRef = ref(db, "rooms/" + roomId + "/video");
+
+  window.onYouTubeIframeAPIReady = () => {
+    player = new YT.Player("player", {
+      height: "100%",
+      width: "100%",
+      videoId: "",
+      events: { onReady: () => console.log("✅ Player ready"), onStateChange: handlePlayerState }
+    });
+  };
+
+  function handlePlayerState(event) {
+    if (!isCreator) return;
+    if (event.data === YT.PlayerState.PLAYING) {
+      update(videoRef, { time: player.getCurrentTime(), action: "play" });
+      syncInterval = setInterval(() => update(videoRef, { time: player.getCurrentTime(), action: "play" }), 2000);
+    } else if (event.data === YT.PlayerState.PAUSED) {
+      clearInterval(syncInterval);
+      update(videoRef, { time: player.getCurrentTime(), action: "pause" });
     }
+  }
 
-    // === NOMBRE USUARIO ===
-    const userId = Math.random().toString(36).substring(2, 10);
-    let userName = isCreator ? "👑 Creator" : "🙋 Viewer";
-    const userNameSpan = document.getElementById("user-name");
-    userNameSpan.textContent = userName;
-
-    userNameSpan.addEventListener("click", () => {
-      const newName = prompt("Escribe tu nuevo nombre (máx. 13 caracteres):", userName.replace("👑 ", "").replace("🙋 ", ""));
-      if (newName !== null) {
-        const trimmed = newName.trim().slice(0, 13);
-        userName = (isCreator ? "👑 " : "🙋 ") + (trimmed || (isCreator ? "Creator" : "Viewer"));
-        userNameSpan.textContent = userName;
-        update(ref(db, "rooms/" + roomId + "/userList/" + userId), { name: userName });
-      }
+  if (isCreator) {
+    document.getElementById("load-video").addEventListener("click", () => {
+      const url = document.getElementById("video-url").value.trim();
+      if (!url) return;
+      const vid = extractVideoId(url);
+      set(videoRef, { url, videoId: vid, action: "pause", time: 0 });
+      player.loadVideoById(vid);
     });
+  }
 
-    // === USUARIOS ===
-    const userCountRef = ref(db, "rooms/" + roomId + "/users");
-    runTransaction(userCountRef, (current) => (current || 0) + 1);
-
-    const userListRef = ref(db, "rooms/" + roomId + "/userList/" + userId);
-    set(userListRef, { name: userName });
-
-    onValue(userCountRef, (snap) => {
-      document.getElementById("user-count").innerText = (snap.val() || 0) + " online";
-    });
-
-    window.addEventListener("beforeunload", () => {
-      runTransaction(userCountRef, (current) => (current || 1) - 1);
-      remove(userListRef);
-    });
-
-    // === LISTA DE USUARIOS ===
-    const userModal = document.getElementById("user-modal");
-    const userListDiv = document.getElementById("user-list");
-    document.getElementById("user-count").addEventListener("click", () => userModal.classList.remove("hidden"));
-    document.getElementById("close-modal").addEventListener("click", () => userModal.classList.add("hidden"));
-
-    onValue(ref(db, "rooms/" + roomId + "/userList"), (snap) => {
-      userListDiv.innerHTML = "";
-      snap.forEach((child) => {
-        const data = child.val();
-        const div = document.createElement("div");
-        div.className = "flex justify-between items-center bg-slate-700 p-2 rounded";
-        div.innerHTML = `<span>${data.name}</span>`;
-        userListDiv.appendChild(div);
-      });
-    });
-
-    // === CHAT ===
-    const chatRef = ref(db, "rooms/" + roomId + "/chat");
-    const chatBox = document.getElementById("chat-messages");
-
-    onValue(chatRef, (snap) => {
-      chatBox.innerHTML = "";
-      snap.forEach((msg) => {
-        const data = msg.val();
-        const div = document.createElement("div");
-        div.className = "bg-slate-700 p-2 rounded break-words";
-        div.innerHTML = `<span class="text-emerald-400 font-bold">${data.user}</span> 
-          <span class="text-gray-400 text-xs">[${new Date(data.time).toLocaleTimeString()}]</span><br>${data.text}`;
-        chatBox.appendChild(div);
-      });
-      chatBox.scrollTop = chatBox.scrollHeight;
-    });
-
-    document.getElementById("send-chat").addEventListener("click", sendMessage);
-    document.getElementById("chat-input").addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
-
-    function sendMessage() {
-      const input = document.getElementById("chat-input");
-      if (!input.value.trim()) return;
-      push(chatRef, { user: userName, text: input.value.trim(), time: Date.now() });
-      input.value = "";
+  onValue(videoRef, (snap) => {
+    const data = snap.val();
+    if (!data || isCreator || !player) return;
+    if (data.videoId && player.getVideoData().video_id !== data.videoId) {
+      player.loadVideoById(data.videoId, data.time || 0);
+    } else {
+      const diff = Math.abs(player.getCurrentTime() - data.time);
+      if (diff > 1) player.seekTo(data.time, true);
     }
+    if (data.action === "play") player.playVideo();
+    else player.pauseVideo();
+  });
 
-    // === VIDEO SYNC ===
-    let player;
-    let syncInterval;
-    const videoRef = ref(db, "rooms/" + roomId + "/video");
-
-    window.onYouTubeIframeAPIReady = () => {
-      player = new YT.Player("player", {
-        height: "100%",
-        width: "100%",
-        videoId: "",
-        events: { onReady: () => console.log("✅ Player ready"), onStateChange: handlePlayerState }
-      });
-    };
-
-    function handlePlayerState(event) {
-      if (!isCreator) return;
-      if (event.data === YT.PlayerState.PLAYING) {
-        update(videoRef, { time: player.getCurrentTime(), action: "play" });
-        syncInterval = setInterval(() => update(videoRef, { time: player.getCurrentTime(), action: "play" }), 2000);
-      } else if (event.data === YT.PlayerState.PAUSED) {
-        clearInterval(syncInterval);
-        update(videoRef, { time: player.getCurrentTime(), action: "pause" });
-      }
-    }
-
-    if (isCreator) {
-      document.getElementById("load-video").addEventListener("click", () => {
-        const url = document.getElementById("video-url").value.trim();
-        if (!url) return;
-        const vid = extractVideoId(url);
-        set(videoRef, { url, videoId: vid, action: "pause", time: 0 });
-        player.loadVideoById(vid);
-      });
-    }
-
-    onValue(videoRef, (snap) => {
-      const data = snap.val();
-      if (!data || isCreator || !player) return;
-      if (data.videoId && player.getVideoData().video_id !== data.videoId) {
-        player.loadVideoById(data.videoId, data.time || 0);
-      } else {
-        const diff = Math.abs(player.getCurrentTime() - data.time);
-        if (diff > 1) player.seekTo(data.time, true);
-      }
-      if (data.action === "play") player.playVideo();
-      else player.pauseVideo();
-    });
-
-    if (!isCreator) {
-      document.getElementById("align-video").addEventListener("click", async () => {
-        const snap = await get(videoRef);
-        if (snap.exists()) {
-          const data = snap.val();
-          if (data && player) {
-            player.seekTo(data.time, true);
-            if (data.action === "play") player.playVideo();
-            else player.pauseVideo();
-          }
+  if (!isCreator) {
+    document.getElementById("align-video").addEventListener("click", async () => {
+      const snap = await get(videoRef);
+      if (snap.exists()) {
+        const data = snap.val();
+        if (data && player) {
+          player.seekTo(data.time, true);
+          if (data.action === "play") player.playVideo();
+          else player.pauseVideo();
         }
-      });
-    }
-
-    function extractVideoId(url) {
-      try {
-        const u = new URL(url);
-        if (u.hostname.includes("youtu.be")) return u.pathname.replace("/", "");
-        if (u.searchParams.has("v")) return u.searchParams.get("v");
-      } catch (e) {
-        const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
-        const match = url.match(regExp);
-        return match ? match[1] : "";
-      }
-      return "";
-    }
-
-    // === CHAT FLOTANTE ===
-    const chatSidebar = document.getElementById("chat-sidebar");
-    const popChatBtn = document.getElementById("pop-chat");
-    const chatHeader = document.getElementById("chat-header");
-    const resizeHandle = document.getElementById("resize-handle");
-
-    let isFloating = false, isDragging = false, offsetX, offsetY, isResizing = false, startX, startY, startWidth, startHeight;
-
-    popChatBtn.addEventListener("click", () => {
-      if (!isFloating) {
-        chatSidebar.style.position = "fixed";
-        chatSidebar.style.width = "340px";
-        chatSidebar.style.height = "440px";
-        chatSidebar.style.right = "20px";
-        chatSidebar.style.bottom = "20px";
-        chatSidebar.style.zIndex = "9999";
-        chatSidebar.style.boxShadow = "0 0 15px rgba(0,255,255,0.3)";
-        chatSidebar.style.border = "1px solid rgba(0,255,255,0.2)";
-        resizeHandle.classList.remove("hidden");
-        popChatBtn.textContent = "📥 Dock";
-        isFloating = true;
-        chatHeader.addEventListener("mousedown", dragStart);
-        document.addEventListener("mouseup", dragEnd);
-      } else {
-        chatSidebar.removeAttribute("style");
-        popChatBtn.textContent = "📤 Pop";
-        isFloating = false;
-        resizeHandle.classList.add("hidden");
-        chatHeader.removeEventListener("mousedown", dragStart);
-        document.removeEventListener("mouseup", dragEnd);
       }
     });
+  }
 
-    function dragStart(e) {
-      if (!isFloating) return;
-      isDragging = true;
-      offsetX = e.clientX - chatSidebar.getBoundingClientRect().left;
-      offsetY = e.clientY - chatSidebar.getBoundingClientRect().top;
-      document.addEventListener("mousemove", dragMove);
+  function extractVideoId(url) {
+    try {
+      const u = new URL(url);
+      if (u.hostname.includes("youtu.be")) return u.pathname.replace("/", "");
+      if (u.searchParams.has("v")) return u.searchParams.get("v");
+    } catch (e) {
+      const regExp = /(?:youtube\.com.*(?:\?|&)v=|youtu\.be\/)([^&#]+)/;
+      const match = url.match(regExp);
+      return match ? match[1] : "";
     }
+    return "";
+  }
 
-    function dragMove(e) {
-      if (!isDragging || !isFloating) return;
-      chatSidebar.style.left = e.clientX - offsetX + "px";
-      chatSidebar.style.top = e.clientY - offsetY + "px";
+  // === CHAT FLOTANTE + EFECTO DE DESENFOQUE ===
+  const chatSidebar = document.getElementById("chat-sidebar");
+  const popChatBtn = document.getElementById("pop-chat");
+  const chatHeader = document.getElementById("chat-header");
+  const resizeHandle = document.getElementById("resize-handle");
+
+  let isFloating = false, isDragging = false, offsetX, offsetY, isResizing = false, startX, startY, startWidth, startHeight;
+
+  popChatBtn.addEventListener("click", () => {
+    if (!isFloating) {
+      chatSidebar.style.position = "fixed";
+      chatSidebar.style.width = "340px";
+      chatSidebar.style.height = "440px";
+      chatSidebar.style.right = "20px";
+      chatSidebar.style.bottom = "20px";
+      chatSidebar.style.zIndex = "9999";
+      chatSidebar.style.boxShadow = "0 0 15px rgba(0,255,255,0.3)";
+      chatSidebar.style.border = "1px solid rgba(0,255,255,0.2)";
+      resizeHandle.classList.remove("hidden");
+      popChatBtn.textContent = "📥 Dock";
+      isFloating = true;
+      chatHeader.addEventListener("mousedown", dragStart);
+      document.addEventListener("mouseup", dragEnd);
+    } else {
+      chatSidebar.removeAttribute("style");
+      popChatBtn.textContent = "📤 Pop";
+      isFloating = false;
+      resizeHandle.classList.add("hidden");
+      chatHeader.removeEventListener("mousedown", dragStart);
+      document.removeEventListener("mouseup", dragEnd);
     }
+  });
 
-    function dragEnd() {
-      isDragging = false;
-      document.removeEventListener("mousemove", dragMove);
-    }
+  function dragStart(e) {
+    if (!isFloating) return;
+    isDragging = true;
+    offsetX = e.clientX - chatSidebar.getBoundingClientRect().left;
+    offsetY = e.clientY - chatSidebar.getBoundingClientRect().top;
+    document.addEventListener("mousemove", dragMove);
+  }
 
-    resizeHandle.addEventListener("mousedown", (e) => {
-      if (!isFloating) return;
-      e.preventDefault();
-      isResizing = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      const rect = chatSidebar.getBoundingClientRect();
-      startWidth = rect.width;
-      startHeight = rect.height;
-      document.addEventListener("mousemove", resizeMove);
-      document.addEventListener("mouseup", stopResize);
-    });
+  function dragMove(e) {
+    if (!isDragging || !isFloating) return;
+    chatSidebar.style.left = e.clientX - offsetX + "px";
+    chatSidebar.style.top = e.clientY - offsetY + "px";
+  }
 
-    function resizeMove(e) {
-      if (!isResizing) return;
-      chatSidebar.style.width = Math.max(280, startWidth + (e.clientX - startX)) + "px";
-      chatSidebar.style.height = Math.max(350, startHeight + (e.clientY - startY)) + "px";
-    }
+  function dragEnd() {
+    isDragging = false;
+    document.removeEventListener("mousemove", dragMove);
+  }
 
-    function stopResize() {
-      isResizing = false;
-      document.removeEventListener("mousemove", resizeMove);
-      document.removeEventListener("mouseup", stopResize);
-    }
+  // === EFECTO DE DESENFOQUE AUTOMÁTICO ===
+  let idleTimer;
+  const idleDelay = 8000; // 8 segundos
 
-    // === SALIR ===
-    document.getElementById("leave-room").addEventListener("click", () => window.location.href = "index.html");
-  </script>
+  function resetIdleTimer() {
+    clearTimeout(idleTimer);
+    chatSidebar.style.transition = "backdrop-filter 0.4s, opacity 0.4s";
+    chatSidebar.style.backdropFilter = "none";
+    chatSidebar.style.opacity = "1";
+
+    idleTimer = setTimeout(() => {
+      chatSidebar.style.backdropFilter = "blur(6px)";
+      chatSidebar.style.opacity = "0.4";
+    }, idleDelay);
+  }
+
+  ["mousemove", "keypress", "click", "input"].forEach(evt => {
+    chatSidebar.addEventListener(evt, resetIdleTimer);
+  });
+
+  resetIdleTimer();
+
+  resizeHandle.addEventListener("mousedown", (e) => {
+    if (!isFloating) return;
+    e.preventDefault();
+    isResizing = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = chatSidebar.getBoundingClientRect();
+    startWidth = rect.width;
+    startHeight = rect.height;
+    document.addEventListener("mousemove", resizeMove);
+    document.addEventListener("mouseup", stopResize);
+  });
+
+  function resizeMove(e) {
+    if (!isResizing) return;
+    chatSidebar.style.width = Math.max(280, startWidth + (e.clientX - startX)) + "px";
+    chatSidebar.style.height = Math.max(350, startHeight + (e.clientY - startY)) + "px";
+  }
+
+  function stopResize() {
+    isResizing = false;
+    document.removeEventListener("mousemove", resizeMove);
+    document.removeEventListener("mouseup", stopResize);
+  }
+
+  // === SALIR ===
+  document.getElementById("leave-room").addEventListener("click", () => window.location.href = "index.html");
+</script>
 </body>
 </html>
+
