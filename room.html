@@ -110,14 +110,13 @@
   import { getDatabase, ref, set, push, onValue, runTransaction, update, get, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
   const firebaseConfig = {
-  apiKey: "AIzaSyBpUX-bHM7tO6azpEPj2-56k9QfZhkttkw",
-  authDomain: "stylishsteps-b67e8.firebaseapp.com",
-  databaseURL: "https://stylishsteps-b67e8-default-rtdb.firebaseio.com",
-  projectId: "stylishsteps-b67e8",
-  storageBucket: "stylishsteps-b67e8.firebasestorage.app",
-  messagingSenderId: "855401239447",
-  appId: "1:855401239447:web:a0d9ca75fec39f3a21ead2",
-  measurementId: "G-HV24CLYXRF"
+  apiKey: "AIzaSyD-piIT2MMesYbpKEMKEc2qekXGjnEJgNk",
+  authDomain: "streamroom-87c77.firebaseapp.com",
+  databaseURL: "https://streamroom-87c77-default-rtdb.firebaseio.com",
+  projectId: "streamroom-87c77",
+  storageBucket: "streamroom-87c77.firebasestorage.app",
+  messagingSenderId: "141246209583",
+  appId: "1:141246209583:web:86ad49cca54fdc42d530da"
 };
 
 
@@ -167,9 +166,12 @@
   });
 
   window.addEventListener("beforeunload", () => {
-    runTransaction(userCountRef, (current) => (current || 1) - 1);
-    remove(userListRef);
-  });
+  runTransaction(userCountRef, (current) => (current || 1) - 1);
+
+  remove(userListRef);
+  remove(ref(db, "rooms/" + roomId + "/voiceUsers/" + userId));
+  remove(ref(db, "rooms/" + roomId + "/voiceStatus/" + userId));
+});
 
   // === LISTA DE USUARIOS ===
   const userModal = document.getElementById("user-modal");
@@ -492,10 +494,12 @@ async function initMic() {
   startVoiceConnections();
 }
 
+
+
+const peers = {};
+
 // conectar usuarios
 function startVoiceConnections() {
-
-  const peers = {};
 
   onValue(ref(db, "rooms/" + roomId + "/voiceUsers"), snap => {
 
@@ -518,6 +522,7 @@ function startVoiceConnections() {
         audio.autoplay = true;
         document.body.appendChild(audio);
 
+        audio.onended = () => audio.remove();
         audioElements.push(audio);
       };
     }
@@ -562,6 +567,18 @@ pttBtn.addEventListener("mouseup", () => {
   setButtonGlow(pttBtn, false);
 });
 
+/* soporte móvil */
+pttBtn.addEventListener("touchstart", async () => {
+  await initMic();
+  enableMic(true);
+  setButtonGlow(pttBtn, true);
+});
+
+pttBtn.addEventListener("touchend", () => {
+  enableMic(false);
+  setButtonGlow(pttBtn, false);
+});
+
 
 /* 🎤 TOGGLE */
 toggleBtn.addEventListener("click", async () => {
@@ -586,6 +603,5 @@ muteBtn.addEventListener("click", () => {
 </script>
 </body>
 </html>
-
 
 
