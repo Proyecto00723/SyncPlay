@@ -26,6 +26,11 @@
       <button id="leave-room" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm">
         <i class="fas fa-sign-out-alt"></i> Leave
       </button>
+      <div class="flex gap-2">
+        <button id="ptt-btn" class="bg-yellow-600 px-3 py-1 rounded text-sm">🎙 Hold</button>
+        <button id="toggle-btn" class="bg-emerald-600 px-3 py-1 rounded text-sm">🎤 Toggle</button>
+        <button id="mute-btn" class="bg-red-600 px-3 py-1 rounded text-sm">🔇 Mute</button>
+      </div>
     </div>
   </header>
 
@@ -449,9 +454,117 @@
 
   // === SALIR ===
   document.getElementById("leave-room").addEventListener("click", () => window.location.href = "index.html");
+
+  /* =========================
+   🎤 VOICE CHAT (WebRTC)
+========================= */
+
+let localStream = null;
+let micEnabled = false;
+let mutedAll = false;
+let audioElements = [];
+
+// pedir micrófono una sola vez
+async function initMic() {
+  if (localStream) return;
+
+  localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+  // iniciar apagado
+  localStream.getAudioTracks().forEach(t => t.enabled = false);
+
+  startVoiceConnections();
+}
+
+// conectar usuarios
+function startVoiceConnections() {
+
+  const peers = {};
+
+  onValue(ref(db, "rooms/" + roomId + "/voiceUsers"), snap => {
+
+    const users = snap.val() || {};
+
+    for (let id in users) {
+
+      if (id === userId || peers[id]) continue;
+
+      const pc = new RTCPeerConnection();
+      peers[id] = pc;
+
+      localStream.getTracks().forEach(track =>
+        pc.addTrack(track, localStream)
+      );
+
+      pc.ontrack = (event) => {
+        const audio = document.createElement("audio");
+        audio.srcObject = event.streams[0];
+        audio.autoplay = true;
+        document.body.appendChild(audio);
+
+        audioElements.push(audio);
+      };
+    }
+  });
+
+  set(ref(db, "rooms/" + roomId + "/voiceUsers/" + userId), true);
+}
+
+/* =========================
+   🎤 FUNCIONES MICRO
+========================= */
+
+function enableMic(state) {
+  if (!localStream) return;
+  localStream.getAudioTracks().forEach(t => t.enabled = state);
+  micEnabled = state;
+}
+
+/* =========================
+   🎛 BOTONES
+========================= */
+
+const pttBtn = document.getElementById("ptt-btn");
+const toggleBtn = document.getElementById("toggle-btn");
+const muteBtn = document.getElementById("mute-btn");
+
+
+/* 🎙 HOLD (mantener presionado) */
+pttBtn.addEventListener("mousedown", async () => {
+  await initMic();
+  enableMic(true);
+  pttBtn.classList.add("bg-green-600");
+});
+
+pttBtn.addEventListener("mouseup", () => {
+  enableMic(false);
+  pttBtn.classList.remove("bg-green-600");
+});
+
+
+/* 🎤 TOGGLE */
+toggleBtn.addEventListener("click", async () => {
+  await initMic();
+
+  enableMic(!micEnabled);
+
+  toggleBtn.classList.toggle("bg-green-600", micEnabled);
+});
+
+
+/* 🔇 MUTE GLOBAL (no escuchar a nadie) */
+muteBtn.addEventListener("click", () => {
+
+  mutedAll = !mutedAll;
+
+  audioElements.forEach(a => a.muted = mutedAll);
+
+  muteBtn.classList.toggle("bg-gray-600", mutedAll);
+});
+
+
 </script>
 </body>
 </html>
-
 
 
