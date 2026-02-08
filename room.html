@@ -183,7 +183,17 @@
       const data = child.val();
       const div = document.createElement("div");
       div.className = "flex justify-between items-center bg-slate-700 p-2 rounded";
-      div.innerHTML = `<span>${data.name}</span>`;
+      const micIcon = document.createElement("span");
+micIcon.textContent = "🔇";
+
+div.innerHTML = `<span>${data.name}</span>`;
+div.appendChild(micIcon);
+
+// escuchar estado micro
+onValue(ref(db, "rooms/" + roomId + "/voiceStatus/" + child.key), snap => {
+  const active = snap.val();
+  micIcon.textContent = active ? "🎤" : "🔇";
+});
       userListDiv.appendChild(div);
     });
   });
@@ -215,10 +225,16 @@
     input.value = "";
   }
 
+  function setButtonGlow(btn, on) {
+  btn.classList.toggle("ring-4");
+  btn.classList.toggle("ring-green-400", on);
+}
+
   // === VIDEO SYNC ===
   let player;
   let syncInterval;
   const videoRef = ref(db, "rooms/" + roomId + "/video");
+  const voiceStatusRef = ref(db, "rooms/" + roomId + "/voiceStatus/" + userId);
 
   window.onYouTubeIframeAPIReady = () => {
     player = new YT.Player("player", {
@@ -516,8 +532,13 @@ function startVoiceConnections() {
 
 function enableMic(state) {
   if (!localStream) return;
+
   localStream.getAudioTracks().forEach(t => t.enabled = state);
+
   micEnabled = state;
+
+  // 🔥 guardar estado en firebase
+  set(voiceStatusRef, state);
 }
 
 /* =========================
@@ -533,12 +554,12 @@ const muteBtn = document.getElementById("mute-btn");
 pttBtn.addEventListener("mousedown", async () => {
   await initMic();
   enableMic(true);
-  pttBtn.classList.add("bg-green-600");
+  setButtonGlow(pttBtn, true);
 });
 
 pttBtn.addEventListener("mouseup", () => {
   enableMic(false);
-  pttBtn.classList.remove("bg-green-600");
+  setButtonGlow(pttBtn, false);
 });
 
 
@@ -548,9 +569,8 @@ toggleBtn.addEventListener("click", async () => {
 
   enableMic(!micEnabled);
 
-  toggleBtn.classList.toggle("bg-green-600", micEnabled);
+  setButtonGlow(toggleBtn, micEnabled);
 });
-
 
 /* 🔇 MUTE GLOBAL (no escuchar a nadie) */
 muteBtn.addEventListener("click", () => {
@@ -566,6 +586,5 @@ muteBtn.addEventListener("click", () => {
 </script>
 </body>
 </html>
-
 
 
